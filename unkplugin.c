@@ -22,31 +22,62 @@
 
 #include "unkplugin.h"
 #include "unkgui.h"
+#include "unksidebar.h"
 #include "unkdb.h"
 
 PLUGIN_VERSION_CHECK(GEANY_API_VERSION)
 
+GeanyPlugin		*geany_plugin;
+GeanyData		*geany_data;
+
 static GtkWidget *main_menu_item = NULL;
 UnkInfo *unk_info = NULL;
+ConfigWidgets* config_widgets = NULL;
 
 static PluginCallback unk_plugin_callbacks[] =
 {
 	/* Set 'after' (third field) to TRUE to run the callback @a after the default handler.
 	 * If 'after' is FALSE, the callback is run @a before the default handler, so the plugin
 	 * can prevent Geany from processing the notification. Use this with care. */
+	{ "document-open", (GCallback) &on_document_open, TRUE, NULL },
 	{ "editor-notify", (GCallback) &unk_gui_editor_notify, FALSE, NULL },
 	{ NULL, NULL, FALSE, NULL }
 };
 
 
 
+static void config_init(void)
+{
+    GKeyFile *config = g_key_file_new();
+	
+    unk_info->config_file = g_strconcat(geany->app->configdir, G_DIR_SEPARATOR_S,
+		"plugins", G_DIR_SEPARATOR_S, "unk", G_DIR_SEPARATOR_S, "general.conf", NULL);
+
+	//g_print("%s", unk_info->config_file);
+    
+    g_key_file_load_from_file(config, unk_info->config_file, G_KEY_FILE_NONE, NULL);
+
+    unk_info->enable_parse_on_open_document = utils_get_setting_boolean(
+		config, "general", "enable_parse_on_open_document", TRUE);
+	
+	unk_info->db_path = utils_get_setting_string(
+		config, "general", "db_path", "~/unk.db");
+
+	 g_key_file_free(config);
+}
 
 /* Called by Geany to initialize the plugin */
 static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 {
 	GtkWidget *unk_menu_item;
-	GeanyData *geany_data = plugin->geany_data;
-
+	geany_plugin = plugin;
+	geany_data = plugin->geany_data;
+	
+	config_widgets = g_malloc (sizeof (config_widgets));
+	unk_info = g_malloc (sizeof (unk_info));
+	
+	config_init();
+	
 	/* Add an item to the Tools menu */
 	unk_menu_item = gtk_menu_item_new_with_mnemonic(_("_Url Notes Keeper"));
 	gtk_widget_show(unk_menu_item);
@@ -67,39 +98,40 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 	 * PluginCallback. */
 	geany_plugin_set_data(plugin, plugin, NULL);
 	
-	unk_db_init("/home/red/unk.db");
+	unk_db_init(unk_info->db_path);
 	sidebar_init(plugin);
 	
 	return TRUE;
 }
 
-
-/* Called by Geany to show the plugin's configure dialog. This function is always called after
- * plugin_init() was called.
- * You can omit this function if the plugin doesn't need to be configured.
- * Note: parent is the parent window which can be used as the transient window for the created
- *       dialog. */
 static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data)
 {
-	GtkWidget *label, *entry, *vbox;
+	GtkWidget *label_db_path, *entry_db_path, *vbox, *checkbox_enable_parse_on_open_document;
 
-	/* example configuration dialog */
 	vbox = gtk_vbox_new(FALSE, 6);
 
-	/* add a label and a text entry to the dialog */
-	label = gtk_label_new(_("Welcome text to show:"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-	entry = gtk_entry_new();
-	//if (welcome_text != NULL)
-	//	gtk_entry_set_text(GTK_ENTRY(entry), welcome_text);
-
-	gtk_container_add(GTK_CONTAINER(vbox), label);
-	gtk_container_add(GTK_CONTAINER(vbox), entry);
-
+	{
+		label_db_path = gtk_label_new(_("Database:"));
+		entry_db_path = gtk_entry_new();
+		if (unk_info->db_path != NULL)
+			gtk_entry_set_text(GTK_ENTRY(entry_db_path), unk_info->db_path);
+		config_widgets->entry_db_path = entry_db_path;
+		
+		gtk_container_add(GTK_CONTAINER(vbox), label_db_path);
+		gtk_container_add(GTK_CONTAINER(vbox), entry_db_path);
+	}
+	
+	{
+		checkbox_enable_parse_on_open_document = gtk_check_button_new_with_mnemonic(_("_Enable parse on open document"));
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox_enable_parse_on_open_document), unk_info->enable_parse_on_open_document);
+		gtk_widget_set_focus_on_click(checkbox_enable_parse_on_open_document, FALSE);
+		config_widgets->checkbox_enable_parse_on_open_document = checkbox_enable_parse_on_open_document;
+		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_parse_on_open_document, FALSE, FALSE, 6);
+	}
+	
 	gtk_widget_show_all(vbox);
 
-	/* Connect a callback for when the user clicks a dialog button */
-	g_signal_connect(dialog, "response", G_CALLBACK(on_configure_response), entry);
+	g_signal_connect(dialog, "response", G_CALLBACK(on_configure_response), NULL);
 	return vbox;
 }
 
@@ -111,11 +143,11 @@ static void unk_plugin_cleanup(GeanyPlugin *plugin, gpointer data)
 {
 	/* remove the menu item added in demo_init() */
 	gtk_widget_destroy(main_menu_item);
-	/* release other allocated strings and objects */
-	//g_free(welcome_text);
 	
 	sidebar_cleanup();
 	unk_db_cleanup();
+	g_free(unk_info);
+	g_free(config_widgets);
 }
 
 void geany_load_module(GeanyPlugin *plugin)

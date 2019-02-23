@@ -1,7 +1,9 @@
 #include <geanyplugin.h>
 
 #include <sqlite3.h>
-
+//#include <wordexp.h>
+#include <glib.h>
+#include <glib/gprintf.h>
 #include "unkdb.h"
 static sqlite3* dbc = NULL;
 
@@ -30,17 +32,31 @@ extract_error (int retcode, char *fn, sqlite3 *dbc, int line, const char *func)
 	 if (err)
 		g_print ("\nError-Message : %s\n\n",err);
 }
+gchar* expand_shell_replacers(const gchar* filename)
+{
+	gchar **split = g_strsplit(filename, G_DIR_SEPARATOR_S, -1);
+	for (int i =0; i < g_strv_length (split); i++)
+		if (*split[i] == '~')
+			SETPTR(split[i], g_get_home_dir());
+	
+	gchar* text = g_strjoinv(G_DIR_SEPARATOR_S, split);
+	g_strfreev(split);
+	return text;
+}
  
-gint unk_db_init(gchar* filename)
+gint unk_db_init(const gchar* filename)
 {
 	sqlite3_stmt *stmt;
 	gint ret;
+	gchar* p;
+	p = expand_shell_replacers(filename);
 	
-	int rc = sqlite3_open(filename, &dbc);
+	gint rc = sqlite3_open(p , &dbc);
 	//HANDLE_ERROR(ret, "sqlite3_open", dbc);
-	if (rc)
+	if (rc != SQLITE_OK)
 	{
-		g_print(stderr, "sqlite3_open error: %s\n", sqlite3_errmsg(dbc));
+		g_print("sqlite3_open error: %s", sqlite3_errmsg(dbc));
+		g_print("database path: %s", p);
 		return rc;
 	}	
 	gchar* sql = "CREATE TABLE IF NOT EXISTS urlnotes("  \
@@ -55,6 +71,8 @@ gint unk_db_init(gchar* filename)
 
 	sqlite3_finalize(stmt);
 	
+	g_free(p);
+
 	return rc;
 }
 
@@ -69,8 +87,8 @@ gchar* unk_db_get(gchar* key, gchar* default_value)
 		SHOW_ERROR(rc, "sqlite3_prepare_v2", dbc);
 		return default_value;
     }
-    //g_print("%d",sqlite3_column_count(stmt));
-	rc = sqlite3_bind_text(stmt, 1, key, strlen(key)+1, 0);
+    
+    rc = sqlite3_bind_text(stmt, 1, key, strlen(key)+1, 0);
     if (rc != SQLITE_OK) {
 		SHOW_ERROR(rc, "sqlite3_bind_text", dbc);
 		return default_value;
@@ -79,12 +97,11 @@ gchar* unk_db_get(gchar* key, gchar* default_value)
     rc = sqlite3_step(stmt);		
     if ( rc == SQLITE_ROW )
     {
-		value = g_strdup(sqlite3_column_text(stmt,0));
-		g_print("db_get1v: %s ", value);
+		value = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
 	}
     else if (rc == SQLITE_DONE)
     {
-		g_print("db_get: not found %s ", key);
+		//g_print("db_get: not found %s ", key);
 	}
     else
     {
@@ -93,12 +110,9 @@ gchar* unk_db_get(gchar* key, gchar* default_value)
 		err = sqlite3_errmsg (dbc);
 		if (err)
 			g_print ("\nError-Message : %s\n\n",err);
-		g_print("%d", rc);
 	}
          
-	//gchar* value = g_strdup("description");  
 	sqlite3_finalize(stmt);
-	g_print("db_get3: %s ", value);
 	
 	return value;
 }
@@ -108,7 +122,7 @@ gboolean unk_db_set(gpointer key, gpointer value)
 	sqlite3_stmt *stmt;
 	gint ret;
 	
-	ui_set_statusbar(TRUE, "db set: %s %s", (gchar*)key, (gchar*)value);
+	//ui_set_statusbar(TRUE, "db set: %s %s", (gchar*)key, (gchar*)value);
 	
 	ret = sqlite3_prepare_v2 (dbc, "REPLACE INTO urlnotes (url, note) VALUES (?1,?2)", -1, &stmt, NULL);
 	HANDLE_ERROR(ret, "sqlite3_prepare_v2", dbc);
@@ -133,11 +147,14 @@ gboolean unk_db_set(gpointer key, gpointer value)
 
 void unk_db_cleanup(void)
 {
-	gint ret;
+	gint rc;
 	
 	if (dbc)
 	{
-		ret = sqlite3_close_v2 (dbc);
-		HANDLE_ERROR(ret, "sqlite3_close_v2", dbc);
+		rc = sqlite3_close_v2 (dbc);
+		if (rc != SQLITE_OK)
+		{
+			g_print("sqlite3_close error: %s\n", sqlite3_errmsg(dbc));
+		}	
 	}
 }

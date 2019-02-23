@@ -9,6 +9,7 @@
 #include "unksidebar.h"
 #include "unkdb.h"
 
+static gint GEANY_INDICATOR_UNK = 23;
 
 gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 {
@@ -20,13 +21,16 @@ gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 	gboolean wordchars_modified = FALSE;
 
 	wordchars_len = scintilla_send_message(doc->editor->sci, SCI_GETWORDCHARS, 0, 0);
-	wordchars = g_malloc0(wordchars_len + 2); /* 2 = temporarily added "'" and "\0" */
+	wordchars = g_malloc0(wordchars_len + 5); /* 2 = temporarily added "'" and "\0" */
 	scintilla_send_message(doc->editor->sci, SCI_GETWORDCHARS, 0, (sptr_t)wordchars);
 	
 	if (! strchr(wordchars, '.'))
 	{
 		/* temporarily add "'" to the wordchars */
 		wordchars[wordchars_len] = '.';
+		wordchars[wordchars_len+1] = '/';
+		wordchars[wordchars_len+2] = '\\';
+		wordchars[wordchars_len+3] = ':';
 		wordchars_modified = TRUE;
 	}
 	if (wordchars_modified)
@@ -52,6 +56,54 @@ gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 	return NULL;
 }
 
+void set_markers_in_range(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
+{
+	GList* list = NULL, *iterator = NULL;
+	
+	struct Sci_TextRange tr;
+	tr.chrg.cpMin = range_start_pos;
+	tr.chrg.cpMax = range_end_pos;
+	tr.lpstrText = g_malloc(range_end_pos - range_start_pos + 1);
+	scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
+				
+	
+	list = unk_match_url_text(tr.lpstrText);
+	
+	for (iterator = list; iterator; iterator = iterator->next) {
+		gint cur_start_pos = range_start_pos + ((URLPosition*)(iterator->data))->start;
+		gint cur_end_pos = range_start_pos + ((URLPosition*)(iterator->data))->end;
+		//ui_set_statusbar(TRUE, "start: %d end:%d", start_pos, end_pos);
+		
+		editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK , cur_start_pos, cur_end_pos);
+		scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK, INDIC_DOTBOX);
+		scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK, 60);
+
+	}
+	
+	g_list_free_full (list, g_free);
+	g_free(tr.lpstrText);
+							
+}
+
+/*
+ * 	Occures on document opening.
+ */
+void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
+{
+	if (unk_info->enable_parse_on_open_document)
+	{
+		/*set dwell interval*/
+		scintilla_send_message(doc->editor->sci, SCI_SETMOUSEDWELLTIME, 500, 0);
+
+		/* set tab size for calltips */
+		scintilla_send_message(doc->editor->sci, SCI_CALLTIPUSESTYLE, 20, (long)NULL);
+		 
+		gint nLen = scintilla_send_message(doc->editor->sci, SCI_GETLENGTH, 0, 0);
+		
+		set_markers_in_range(doc->editor, 0, nLen);
+	}
+}
+
 gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 								 SCNotification *nt, gpointer data)
 {
@@ -71,7 +123,6 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			/* This notification is sent very often, you should not do time-consuming tasks here */
 			break;
 		case SCN_CHARADDED:
-			//ui_set_statusbar(TRUE, "type position:%ld", nt->position);
 			if (nt->ch == ' ' || nt->ch == '\n') 
 			{
 				cur_pos = scintilla_send_message(editor->sci, SCI_GETCURRENTPOS, 0, 0);
@@ -81,30 +132,14 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 					if (prev_char > 0 && (prev_char != ' ' && prev_char != '\n')) 
 					{
 						word = get_backward_word(editor->document, cur_pos-1);
-						if (word) 
-						{ 
-							ui_set_statusbar(TRUE, "word: %s position:%d", word, cur_pos);
+						 if (word) 
+						 { 
 							gint g_start_pos = cur_pos - strlen(word) - 1;
 							
-							GList* list = NULL, *iterator = NULL;
-							list = unk_match_url_word(word);
+							set_markers_in_range(editor, g_start_pos, cur_pos-1);
 							
-							for (iterator = list; iterator; iterator = iterator->next) {
-								//printf("Current item is '%s'\n", iterator->data);
-								gint start_pos = g_start_pos + ((URLPosition*)(iterator->data))->start;
-								gint end_pos = g_start_pos + ((URLPosition*)(iterator->data))->end;
-								ui_set_statusbar(TRUE, "start: %d end:%d", start_pos, end_pos);
-								//g_print("start: %d end:%d", start_pos, end_pos);
+							//~ //ui_set_statusbar(TRUE, "word: %s position:%d", word, cur_pos);
 							
-								editor_indicator_set_on_range(editor, GEANY_INDICATOR_SNIPPET , start_pos, end_pos);
-								scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_SNIPPET, INDIC_DOTBOX);
-								scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_SNIPPET, 60);
-  						
-						}
-							
-							g_list_free_full (list, g_free);
-													
-							g_free(word);
 						}
 					}
 				}
@@ -112,20 +147,21 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			break;
 		case SCN_INDICATORCLICK:
 			
-			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_SNIPPET, nt->position))
+			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK, nt->position))
 			{
-				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_SNIPPET, nt->position);
-				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_SNIPPET, nt->position);
-				ui_set_statusbar(TRUE, "indicator click start: %d end:%d", start, end);
+				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK, nt->position);
+				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK, nt->position);
+				//ui_set_statusbar(TRUE, "indicator click start: %d end:%d", start, end);
 				struct Sci_TextRange tr;
 				tr.chrg.cpMin = start;
 				tr.chrg.cpMax = end;
 				tr.lpstrText = g_malloc(end - start + 1);
-				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, NULL, (sptr_t)&tr);
+				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 				sidebar_set_url(tr.lpstrText);
 				gchar* note = unk_db_get(tr.lpstrText, "");
 				sidebar_set_note(note);
-							
+				sidebar_activate();
+				sidebar_show(geany_plugin);			
 				g_free(tr.lpstrText);
 				g_free(note);
 				
@@ -133,22 +169,19 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 								
 			break;
 		case SCN_DWELLSTART:
-			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_SNIPPET, nt->position))
+			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK, nt->position))
 			{
-				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_SNIPPET, nt->position);
-				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_SNIPPET, nt->position);
+				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK, nt->position);
+				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK, nt->position);
 				struct Sci_TextRange tr;
 				tr.chrg.cpMin = start;
 				tr.chrg.cpMax = end;
 				tr.lpstrText = g_malloc(end - start + 1);
-				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, NULL, (sptr_t)&tr);
+				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 				
-				//gchar* d = g_strdup("none");
 				gchar* note = unk_db_get(tr.lpstrText, "none");
+				scintilla_send_message(editor->sci, SCI_CALLTIPSHOW, nt->position, (sptr_t)note);
 				
-				scintilla_send_message(editor->sci, SCI_CALLTIPSHOW, nt->position, note);
-				//g_print("qq2");
-				//g_print("db_gety: %s %s", tr.lpstrText, note);
 				g_free(tr.lpstrText);
 				g_free(note);
 			}
@@ -174,23 +207,48 @@ item_activate(GtkMenuItem *menuitem, gpointer gdata)
 	sidebar_show(plugin);
 }
 
-
-/* Callback connected in plugin_configure(). */
 void
-on_configure_response(GtkDialog *dialog, gint response, gpointer user_data)
+on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
+                      G_GNUC_UNUSED gpointer user_data)
 {
-	/* catch OK or Apply clicked */
-	if (response == GTK_RESPONSE_OK || response == GTK_RESPONSE_APPLY)
-	{
-		/* We only have one pref here, but for more you would use a struct for user_data */
-		//GtkWidget *entry = GTK_WIDGET(user_data);
+    if (response == GTK_RESPONSE_OK || response == GTK_RESPONSE_APPLY)
+    {
+        GKeyFile *config = g_key_file_new();
+        gchar *data;
+        gchar *config_dir = g_path_get_dirname(unk_info->config_file);
 
-		//g_free(welcome_text);
-		//welcome_text = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
-		/* maybe the plugin should write here the settings into a file
-		 * (e.g. using GLib's GKeyFile API)
-		 * all plugin specific files should be created in:
-		 * geany->app->configdir G_DIR_SEPARATOR_S plugins G_DIR_SEPARATOR_S pluginname G_DIR_SEPARATOR_S
-		 * e.g. this could be: ~/.config/geany/plugins/Demo/, please use geany->app->configdir */
-	}
+        //~ config_file = g_strconcat(geany->app->configdir,
+            //~ G_DIR_SEPARATOR_S, "plugins", G_DIR_SEPARATOR_S,
+            //~ "unk", G_DIR_SEPARATOR_S, "general.conf", NULL);
+
+        unk_info->enable_parse_on_open_document = gtk_toggle_button_get_active(
+			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_parse_on_open_document));
+		
+		SETPTR(unk_info->db_path, g_strdup(gtk_entry_get_text(GTK_ENTRY(config_widgets->entry_db_path))));
+		
+		/* write stuff to file */
+        g_key_file_load_from_file(config, unk_info->config_file, G_KEY_FILE_NONE, NULL);
+
+        g_key_file_set_boolean(config, "general", "enable_parse_on_open_document",
+            unk_info->enable_parse_on_open_document);
+
+		g_key_file_set_string(config, "general", "db_path", unk_info->db_path);
+		
+		        if (!g_file_test(config_dir, G_FILE_TEST_IS_DIR)
+            && utils_mkdir(config_dir, TRUE) != 0)
+        {
+            dialogs_show_msgbox(GTK_MESSAGE_ERROR,
+                _("Plugin configuration directory could not be created."));
+        }
+        else
+        {
+            /* write config to file */
+            data = g_key_file_to_data(config, NULL, NULL);
+            utils_write_file(unk_info->config_file, data);
+            g_free(data);
+        }
+
+        g_free(config_dir);
+        g_key_file_free(config);
+    }
 }

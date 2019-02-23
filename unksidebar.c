@@ -7,7 +7,7 @@
 #include "unksidebar.h"
 #include "unkdb.h"
 
-static gchar* unk_sidebar_group_name = "urlnotes";	
+//static gchar* unk_sidebar_group_name = "urlnotes";	
 
 typedef struct SIDEBAR
 {
@@ -81,7 +81,7 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 	/**** text ****/
 	sidebar.unk_text_view = gtk_text_view_new ();
 	buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (sidebar.unk_text_view));
-	gtk_text_buffer_set_text (buffer, "Hello, this is some text", -1);
+	gtk_text_buffer_set_text (buffer, "", -1);
 	gtk_widget_add_events(sidebar.unk_text_view, GDK_FOCUS_CHANGE_MASK);
 	g_signal_connect(G_OBJECT(sidebar.unk_text_view), "focus-out-event",
 			G_CALLBACK(sidebar_unk_text_view_on_focus_out), NULL);
@@ -103,8 +103,20 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 		gtk_label_new(_("Url Notes")));
 	
 	//gtk_notebook_set_group_name (GTK_NOTEBOOK(geany_plugin->geany_data->main_widgets->sidebar_notebook), unk_sidebar_group_name);
-				 
+	
+	sidebar_deactivate();			 
 
+}
+
+void sidebar_activate(void)
+{
+	gtk_widget_set_sensitive(sidebar.unk_view_vbox, TRUE);
+}
+
+
+void sidebar_deactivate(void)
+{
+	gtk_widget_set_sensitive(sidebar.unk_view_vbox, FALSE);
 }
 
 void sidebar_cleanup(void)
