@@ -124,7 +124,7 @@ static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, g
 	{
 		checkbox_enable_parse_on_open_document = gtk_check_button_new_with_mnemonic(_("_Enable parse on open document"));
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox_enable_parse_on_open_document), unk_info->enable_parse_on_open_document);
-		gtk_widget_set_focus_on_click(checkbox_enable_parse_on_open_document, FALSE);
+		gtk_button_set_focus_on_click(GTK_BUTTON(checkbox_enable_parse_on_open_document), FALSE);
 		config_widgets->checkbox_enable_parse_on_open_document = checkbox_enable_parse_on_open_document;
 		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_parse_on_open_document, FALSE, FALSE, 6);
 	}
