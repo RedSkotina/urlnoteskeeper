@@ -102,7 +102,6 @@ void set_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 	tr.lpstrText = g_malloc(range_end_pos - range_start_pos + 1);
 	scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 				
-	
 	list_url = unk_match_url_text(tr.lpstrText);
 	
 	list_keys = unk_db_get_keys();
@@ -178,10 +177,9 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 					if (prev_char > 0 && (prev_char != ' ' && prev_char != '\n')) 
 					{
 						word = get_backward_word(editor->document, cur_pos-1);
-						 if (word) 
-						 { 
+						if (word) 
+						{ 
 							gint g_start_pos = cur_pos - strlen(word) - 1;
-							
 							set_marks(editor, g_start_pos, cur_pos-1);
 						}
 					}

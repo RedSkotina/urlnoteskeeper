@@ -12,12 +12,14 @@ GList* unk_match_url_text(gpointer text)
 	GMatchInfo *matchInfo;
 	GRegex *regex;
 	
-	regex = g_regex_new ("(http:\\/\\/www\\.|https:\\/\\/www\\.|http:\\/\\/|https:\\/\\/)?[a-z0-9]+([\\-\\.]{1}[a-z0-9]+)*\\.[a-z]{2,5}(:[0-9]{1,5})?(\\/.*)?", 0, 0, &err);
+	//regex = g_regex_new ("(http:\\/\\/www\\.|https:\\/\\/www\\.|http:\\/\\/|https:\\/\\/)?[a-z0-9]+([\\-\\.]{1}[a-z0-9]+)*\\.[a-z]{2,5}(:[0-9]{1,5})?(\\/.*)?", 0, 0, &err);
+	regex = g_regex_new ("(http(s)?(\\:\\/\\/))?(www\\.)?([\\w\\-]+(\\.[\\w\\-]+)+)([\\/\\s\\b\\n|][^\\/-\\?]|$)", 0, 0, &err);
 	g_regex_match (regex, text, 0, &matchInfo);
 
 	while (g_match_info_matches (matchInfo)) {
 		URLPosition* pos = (URLPosition*)g_malloc0(sizeof(URLPosition));
-		gboolean result = g_match_info_fetch_pos(matchInfo, 0, &pos->start, &pos->end);
+		// take text from group number 5
+		gboolean result = g_match_info_fetch_pos(matchInfo, 5, &pos->start, &pos->end);
 		if (result)
 		{
 			list = g_list_append(list, pos);
