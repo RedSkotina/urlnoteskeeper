@@ -76,7 +76,7 @@ gint unk_db_init(const gchar* filename)
 	return rc;
 }
 
-gchar* unk_db_get(gchar* key, gchar* default_value)
+gchar* unk_db_get(const gchar* key, const gchar* default_value)
 {	
 	gchar* value = g_strdup(default_value);
 	sqlite3_stmt *stmt;
@@ -85,13 +85,13 @@ gchar* unk_db_get(gchar* key, gchar* default_value)
 	rc = sqlite3_prepare_v2(dbc, sql, strlen(sql)+1, &stmt, 0);    
     if (rc != SQLITE_OK) {
 		SHOW_ERROR(rc, "sqlite3_prepare_v2", dbc);
-		return default_value;
+		return value;
     }
     
     rc = sqlite3_bind_text(stmt, 1, key, strlen(key)+1, 0);
     if (rc != SQLITE_OK) {
 		SHOW_ERROR(rc, "sqlite3_bind_text", dbc);
-		return default_value;
+		return value;
     }
     	
     rc = sqlite3_step(stmt);		
@@ -117,7 +117,7 @@ gchar* unk_db_get(gchar* key, gchar* default_value)
 	return value;
 }
 
-gboolean unk_db_set(gpointer key, gpointer value)
+gboolean unk_db_set(const gchar* key, const gchar* value)
 {
 	sqlite3_stmt *stmt;
 	gint ret;
@@ -145,16 +145,47 @@ gboolean unk_db_set(gpointer key, gpointer value)
 	return TRUE;
 }
 
-void unk_db_cleanup(void)
+GList* unk_db_get_keys()
 {
-	gint rc;
+	GList* list = NULL;
+	gchar* value;
+	sqlite3_stmt *stmt;
+	gint ret;
+	
+	gchar* sql = "SELECT url FROM urlnotes;";
+	ret = sqlite3_prepare_v2(dbc, sql, strlen(sql)+1, &stmt, 0);    
+    if (ret != SQLITE_OK) {
+		SHOW_ERROR(ret, "sqlite3_prepare_v2", dbc);
+		return list;
+    }
+    while ( (ret = sqlite3_step(stmt)) == SQLITE_ROW )
+    {
+		value = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
+		list = g_list_append(list, value);
+	}
+    
+    if (ret != SQLITE_DONE)
+    {
+		SHOW_ERROR(ret, "sqlite3_step", dbc);
+		const char *err = NULL;
+		err = sqlite3_errmsg (dbc);
+		if (err)
+			g_print ("\nError-Message : %s\n\n",err);
+	}
+         
+	sqlite3_finalize(stmt);
+	
+	return list;
+}
+
+gint unk_db_cleanup(void)
+{
+	gint ret;
 	
 	if (dbc)
 	{
-		rc = sqlite3_close_v2 (dbc);
-		if (rc != SQLITE_OK)
-		{
-			g_print("sqlite3_close error: %s\n", sqlite3_errmsg(dbc));
-		}	
+		ret = sqlite3_close_v2 (dbc);
+		HANDLE_ERROR(ret, "sqlite3_step", dbc);
 	}
+	return ret;
 }

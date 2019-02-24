@@ -3,10 +3,11 @@
 
 gint unk_db_init(const gchar* filename);
 
-gchar* unk_db_get(gchar* key, gchar* default_value);
+gchar* unk_db_get(const gchar* key, const gchar* default_value);
 
-gboolean unk_db_set(gpointer key, gpointer value);
+gboolean unk_db_set(const gchar* key, const gchar* value);
 
-void unk_db_cleanup(void);
-						  
+gint unk_db_cleanup(void);
+		
+GList* unk_db_get_keys();				  
 #endif

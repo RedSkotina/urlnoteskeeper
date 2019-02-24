@@ -24,6 +24,7 @@
 #include "unkgui.h"
 #include "unksidebar.h"
 #include "unkdb.h"
+#include "unkkeys.h"
 
 PLUGIN_VERSION_CHECK(GEANY_API_VERSION)
 
@@ -77,6 +78,8 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 	unk_info = g_malloc (sizeof (unk_info));
 	
 	config_init();
+	
+	keys_init();
 	
 	/* Add an item to the Tools menu */
 	unk_menu_item = gtk_menu_item_new_with_mnemonic(_("_Url Notes Keeper"));

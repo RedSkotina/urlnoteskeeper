@@ -56,9 +56,45 @@ gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 	return NULL;
 }
 
-void set_markers_in_range(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
+GList* search_marks(GeanyEditor *editor, const gchar *search_text)
 {
-	GList* list = NULL, *iterator = NULL;
+	GList *list = NULL;
+	gint start_pos, flags = 0;
+	struct Sci_TextToFind ttf;
+	
+	ScintillaObject *sci = editor->sci;
+	
+	gint len = scintilla_send_message(sci, SCI_GETLENGTH, 0, 0);
+		
+	ttf.chrg.cpMin = 0;
+	ttf.chrg.cpMax = len;
+	ttf.lpstrText = search_text;
+		
+	
+	while ((start_pos = scintilla_send_message(sci, SCI_FINDTEXT, flags, (sptr_t)&ttf)) != -1)
+	{
+		URLPosition* pos = (URLPosition*)g_malloc0(sizeof(URLPosition));
+		pos->start = ttf.chrgText.cpMin;
+		pos->end = ttf.chrgText.cpMax;
+		list = g_list_append(list, pos);
+		
+		ttf.chrg.cpMin = start_pos + 1;
+		ttf.chrg.cpMax = len;
+	}
+	
+	return list;
+}
+
+void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos) 
+{
+	editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK , range_start_pos, range_end_pos);
+	scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK, INDIC_DOTBOX);
+	scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK, 60);
+}
+
+void set_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
+{
+	GList* list_url = NULL, *list_db = NULL, *list_db2 = NULL, *list_keys = NULL, *iterator = NULL;
 	
 	struct Sci_TextRange tr;
 	tr.chrg.cpMin = range_start_pos;
@@ -67,20 +103,30 @@ void set_markers_in_range(GeanyEditor *editor, gint range_start_pos, gint range_
 	scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 				
 	
-	list = unk_match_url_text(tr.lpstrText);
+	list_url = unk_match_url_text(tr.lpstrText);
 	
-	for (iterator = list; iterator; iterator = iterator->next) {
+	list_keys = unk_db_get_keys();
+	for (iterator = list_keys; iterator; iterator = iterator->next) 
+	{
+		list_db2 = search_marks(editor, (gchar*)iterator->data);
+		list_db = g_list_concat(list_db, list_db2);
+	};
+	g_list_free_full (list_keys, g_free);
+	
+	list_url = g_list_concat(list_url, list_db);
+	
+	for (iterator = list_url; iterator; iterator = iterator->next) 
+	{
 		gint cur_start_pos = range_start_pos + ((URLPosition*)(iterator->data))->start;
 		gint cur_end_pos = range_start_pos + ((URLPosition*)(iterator->data))->end;
-		//ui_set_statusbar(TRUE, "start: %d end:%d", start_pos, end_pos);
 		
 		editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK , cur_start_pos, cur_end_pos);
 		scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK, INDIC_DOTBOX);
 		scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK, 60);
-
 	}
 	
-	g_list_free_full (list, g_free);
+	
+	g_list_free_full (list_url, g_free);
 	g_free(tr.lpstrText);
 							
 }
@@ -100,7 +146,7 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 		 
 		gint nLen = scintilla_send_message(doc->editor->sci, SCI_GETLENGTH, 0, 0);
 		
-		set_markers_in_range(doc->editor, 0, nLen);
+		set_marks(doc->editor, 0, nLen);
 	}
 }
 
@@ -136,10 +182,7 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 						 { 
 							gint g_start_pos = cur_pos - strlen(word) - 1;
 							
-							set_markers_in_range(editor, g_start_pos, cur_pos-1);
-							
-							//~ //ui_set_statusbar(TRUE, "word: %s position:%d", word, cur_pos);
-							
+							set_marks(editor, g_start_pos, cur_pos-1);
 						}
 					}
 				}
@@ -151,17 +194,21 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			{
 				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK, nt->position);
 				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK, nt->position);
-				//ui_set_statusbar(TRUE, "indicator click start: %d end:%d", start, end);
+				
 				struct Sci_TextRange tr;
 				tr.chrg.cpMin = start;
 				tr.chrg.cpMax = end;
 				tr.lpstrText = g_malloc(end - start + 1);
+				
 				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 				sidebar_set_url(tr.lpstrText);
+				
 				gchar* note = unk_db_get(tr.lpstrText, "");
 				sidebar_set_note(note);
+				
 				sidebar_activate();
 				sidebar_show(geany_plugin);			
+				
 				g_free(tr.lpstrText);
 				g_free(note);
 				
