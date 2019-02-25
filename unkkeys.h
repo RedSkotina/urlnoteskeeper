@@ -6,7 +6,9 @@
 /* hotkeys enumeration */
 enum KEYS
 {
-	KEY_ADD
+	KEY_ADD,
+	KEY_DETECT_URLS,
+	KEY_DETECT_DB
 };
 
 gboolean keys_init(void);

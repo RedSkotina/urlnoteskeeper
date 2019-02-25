@@ -31,9 +31,7 @@ PLUGIN_VERSION_CHECK(GEANY_API_VERSION)
 GeanyPlugin		*geany_plugin;
 GeanyData		*geany_data;
 
-static GtkWidget *main_menu_item = NULL;
 UnkInfo *unk_info = NULL;
-ConfigWidgets* config_widgets = NULL;
 
 static PluginCallback unk_plugin_callbacks[] =
 {
@@ -54,12 +52,13 @@ static void config_init(void)
     unk_info->config_file = g_strconcat(geany->app->configdir, G_DIR_SEPARATOR_S,
 		"plugins", G_DIR_SEPARATOR_S, "unk", G_DIR_SEPARATOR_S, "general.conf", NULL);
 
-	//g_print("%s", unk_info->config_file);
-    
-    g_key_file_load_from_file(config, unk_info->config_file, G_KEY_FILE_NONE, NULL);
+	g_key_file_load_from_file(config, unk_info->config_file, G_KEY_FILE_NONE, NULL);
 
-    unk_info->enable_parse_on_open_document = utils_get_setting_boolean(
-		config, "general", "enable_parse_on_open_document", TRUE);
+    unk_info->enable_urls_detect_on_open_document = utils_get_setting_boolean(
+		config, "general", "enable_url_detect_on_open_document", FALSE);
+
+    unk_info->enable_db_detect_on_open_document = utils_get_setting_boolean(
+		config, "general", "enable_db_detect_on_open_document", TRUE);
 	
 	unk_info->db_path = utils_get_setting_string(
 		config, "general", "db_path", "~/unk.db");
@@ -70,7 +69,6 @@ static void config_init(void)
 /* Called by Geany to initialize the plugin */
 static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 {
-	GtkWidget *unk_menu_item;
 	geany_plugin = plugin;
 	geany_data = plugin->geany_data;
 	
@@ -81,17 +79,8 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 	
 	keys_init();
 	
-	/* Add an item to the Tools menu */
-	unk_menu_item = gtk_menu_item_new_with_mnemonic(_("_Url Notes Keeper"));
-	gtk_widget_show(unk_menu_item);
-	gtk_container_add(GTK_CONTAINER(geany_data->main_widgets->tools_menu), unk_menu_item);
-	g_signal_connect(unk_menu_item, "activate", G_CALLBACK(item_activate), plugin);
-
-	/* make the menu item sensitive only when documents are open */
-	ui_add_document_sensitive(unk_menu_item);
-	/* keep a pointer to the menu item, so we can remove it when the plugin is unloaded */
-	main_menu_item = unk_menu_item;
-
+	menu_init();
+	
 	/* This might seem strange but is a method to get the GeanyPlugin pointer passed to
 	 * on_editor_notify(). PluginCallback functions get the same data that was set via
 	 * GEANY_PLUING_REGISTER_FULL() or geany_plugin_set_data() by default (unless the data pointer
@@ -109,33 +98,7 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 
 static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data)
 {
-	GtkWidget *label_db_path, *entry_db_path, *vbox, *checkbox_enable_parse_on_open_document;
-
-	vbox = gtk_vbox_new(FALSE, 6);
-
-	{
-		label_db_path = gtk_label_new(_("Database:"));
-		entry_db_path = gtk_entry_new();
-		if (unk_info->db_path != NULL)
-			gtk_entry_set_text(GTK_ENTRY(entry_db_path), unk_info->db_path);
-		config_widgets->entry_db_path = entry_db_path;
-		
-		gtk_container_add(GTK_CONTAINER(vbox), label_db_path);
-		gtk_container_add(GTK_CONTAINER(vbox), entry_db_path);
-	}
-	
-	{
-		checkbox_enable_parse_on_open_document = gtk_check_button_new_with_mnemonic(_("_Enable parse on open document"));
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox_enable_parse_on_open_document), unk_info->enable_parse_on_open_document);
-		gtk_button_set_focus_on_click(GTK_BUTTON(checkbox_enable_parse_on_open_document), FALSE);
-		config_widgets->checkbox_enable_parse_on_open_document = checkbox_enable_parse_on_open_document;
-		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_parse_on_open_document, FALSE, FALSE, 6);
-	}
-	
-	gtk_widget_show_all(vbox);
-
-	g_signal_connect(dialog, "response", G_CALLBACK(on_configure_response), NULL);
-	return vbox;
+	return create_configure_widget(plugin, dialog, data);
 }
 
 
@@ -144,9 +107,7 @@ static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, g
  * Be sure to leave Geany as it was before plugin_init(). */
 static void unk_plugin_cleanup(GeanyPlugin *plugin, gpointer data)
 {
-	/* remove the menu item added in demo_init() */
-	gtk_widget_destroy(main_menu_item);
-	
+	menu_cleanup();
 	sidebar_cleanup();
 	unk_db_cleanup();
 	g_free(unk_info);

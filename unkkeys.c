@@ -19,7 +19,9 @@ typedef struct _keyinfo {
 
 /* hotkeys list */
 keyinfo keys[] = {
-	{ "key_add", N_("Add word"), KEY_ADD},
+	{ "key_add", N_("Add word to database"), KEY_ADD},
+	{ "key_detect_urls", N_("Detect urls in text"), KEY_DETECT_URLS},
+	{ "key_detect_db", N_("Detect words from database in text"), KEY_DETECT_DB},
 	{ NULL, NULL, 0}
 };
 
@@ -93,6 +95,34 @@ gboolean keys_callback(guint key_id)
 					}
 					g_free(ret);
 					g_free(text);
+				}
+			}
+			break;
+		}
+		case KEY_DETECT_URLS:
+		{
+			GeanyDocument *doc = document_get_current();
+			if (doc)
+			{
+				gint doc_length = sci_get_length(doc->editor->sci);
+				if ( doc_length > 2)
+				{
+					set_url_marks(doc->editor, 0, doc_length);
+					
+				}
+			}
+			break;
+		}
+		case KEY_DETECT_DB:
+		{
+			GeanyDocument *doc = document_get_current();
+			if (doc)
+			{
+				gint doc_length = sci_get_length(doc->editor->sci);
+				if ( doc_length > 2)
+				{
+					set_db_marks(doc->editor, 0, doc_length);
+					
 				}
 			}
 			break;

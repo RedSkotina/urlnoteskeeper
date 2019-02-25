@@ -9,7 +9,12 @@
 #include "unksidebar.h"
 #include "unkdb.h"
 
-static gint GEANY_INDICATOR_UNK = 23;
+static gint GEANY_INDICATOR_UNK_AUTO_DETECTED = 23;
+static gint GEANY_INDICATOR_UNK_DB = 24;
+
+static GtkWidget *main_menu_item = NULL;
+ConfigWidgets* config_widgets = NULL;
+MenuWidgets* menu_widgets = NULL;
 
 gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 {
@@ -87,14 +92,15 @@ GList* search_marks(GeanyEditor *editor, const gchar *search_text)
 
 void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos) 
 {
-	editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK , range_start_pos, range_end_pos);
-	scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK, INDIC_DOTBOX);
-	scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK, 60);
+	editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK_DB , range_start_pos, range_end_pos);
+	scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_DB, INDIC_STRAIGHTBOX);
+	scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_DB, 30);
+	scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_DB, 0x007f00);
 }
 
-void set_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
+void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 {
-	GList* list_url = NULL, *list_db = NULL, *list_db2 = NULL, *list_keys = NULL, *iterator = NULL;
+	GList* list_url = NULL, *iterator = NULL;
 	
 	struct Sci_TextRange tr;
 	tr.chrg.cpMin = range_start_pos;
@@ -104,6 +110,31 @@ void set_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 				
 	list_url = unk_match_url_text(tr.lpstrText);
 	
+	for (iterator = list_url; iterator; iterator = iterator->next) 
+	{
+		gint cur_start_pos = range_start_pos + ((URLPosition*)(iterator->data))->start;
+		gint cur_end_pos = range_start_pos + ((URLPosition*)(iterator->data))->end;
+		
+		editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK_AUTO_DETECTED , cur_start_pos, cur_end_pos);
+		scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_AUTO_DETECTED, INDIC_BOX);
+		scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_AUTO_DETECTED, 50);
+		scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_AUTO_DETECTED, 0x007f00);
+	}
+	
+	g_list_free_full (list_url, g_free);
+	g_free(tr.lpstrText); 
+}
+
+void set_db_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
+{
+	GList* list_url = NULL, *list_db = NULL, *list_db2 = NULL, *list_keys = NULL, *iterator = NULL;
+	
+	struct Sci_TextRange tr;
+	tr.chrg.cpMin = range_start_pos;
+	tr.chrg.cpMax = range_end_pos;
+	tr.lpstrText = g_malloc(range_end_pos - range_start_pos + 1);
+	scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
+	
 	list_keys = unk_db_get_keys();
 	for (iterator = list_keys; iterator; iterator = iterator->next) 
 	{
@@ -112,22 +143,20 @@ void set_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 	};
 	g_list_free_full (list_keys, g_free);
 	
-	list_url = g_list_concat(list_url, list_db);
 	
-	for (iterator = list_url; iterator; iterator = iterator->next) 
+	for (iterator = list_db; iterator; iterator = iterator->next) 
 	{
 		gint cur_start_pos = range_start_pos + ((URLPosition*)(iterator->data))->start;
 		gint cur_end_pos = range_start_pos + ((URLPosition*)(iterator->data))->end;
 		
-		editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK , cur_start_pos, cur_end_pos);
-		scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK, INDIC_DOTBOX);
-		scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK, 60);
+		editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK_DB , cur_start_pos, cur_end_pos);
+		scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_DB, INDIC_STRAIGHTBOX);
+		scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_DB, 30);
+		scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_DB, 0x007f00);
 	}
 	
-	
 	g_list_free_full (list_url, g_free);
-	g_free(tr.lpstrText);
-							
+	g_free(tr.lpstrText); 
 }
 
 /*
@@ -135,17 +164,22 @@ void set_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
  */
 void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 {
-	if (unk_info->enable_parse_on_open_document)
-	{
-		/*set dwell interval*/
-		scintilla_send_message(doc->editor->sci, SCI_SETMOUSEDWELLTIME, 500, 0);
+	/*set dwell interval*/
+	scintilla_send_message(doc->editor->sci, SCI_SETMOUSEDWELLTIME, 500, 0);
 
-		/* set tab size for calltips */
-		scintilla_send_message(doc->editor->sci, SCI_CALLTIPUSESTYLE, 20, (long)NULL);
-		 
-		gint nLen = scintilla_send_message(doc->editor->sci, SCI_GETLENGTH, 0, 0);
+	/* set tab size for calltips */
+	scintilla_send_message(doc->editor->sci, SCI_CALLTIPUSESTYLE, 20, (long)NULL);
 		
-		set_marks(doc->editor, 0, nLen);
+		
+	if (unk_info->enable_urls_detect_on_open_document)
+	{
+		gint nLen = sci_get_length(doc->editor->sci);
+		set_url_marks(doc->editor, 0, nLen);
+	}
+	if (unk_info->enable_db_detect_on_open_document)
+	{
+		gint nLen = sci_get_length(doc->editor->sci);
+		set_db_marks(doc->editor, 0, nLen);
 	}
 }
 
@@ -180,7 +214,15 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 						if (word) 
 						{ 
 							gint g_start_pos = cur_pos - strlen(word) - 1;
-							set_marks(editor, g_start_pos, cur_pos-1);
+							
+							if (unk_info->enable_urls_detect_on_open_document)
+							{
+								set_url_marks(editor, g_start_pos, cur_pos-1);
+							}
+							if (unk_info->enable_db_detect_on_open_document)
+							{
+								set_db_marks(editor, g_start_pos, cur_pos-1);
+							}
 						}
 					}
 				}
@@ -188,10 +230,10 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			break;
 		case SCN_INDICATORCLICK:
 			
-			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK, nt->position))
+			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_DB, nt->position))
 			{
-				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK, nt->position);
-				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK, nt->position);
+				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK_DB, nt->position);
+				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK_DB, nt->position);
 				
 				struct Sci_TextRange tr;
 				tr.chrg.cpMin = start;
@@ -210,14 +252,38 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				g_free(tr.lpstrText);
 				g_free(note);
 				
+			}
+			else if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_AUTO_DETECTED, nt->position))
+			{
+				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK_AUTO_DETECTED, nt->position);
+				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK_AUTO_DETECTED, nt->position);
+				
+				struct Sci_TextRange tr;
+				tr.chrg.cpMin = start;
+				tr.chrg.cpMax = end;
+				tr.lpstrText = g_malloc(end - start + 1);
+				
+				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
+				sidebar_set_url(tr.lpstrText);
+				
+				gchar* note = g_strdup("");
+				sidebar_set_note(note);
+				
+				sidebar_activate();
+				sidebar_show(geany_plugin);			
+				
+				g_free(tr.lpstrText);
+				g_free(note);
+				
 			};
+			
 								
 			break;
 		case SCN_DWELLSTART:
-			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK, nt->position))
+			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_DB, nt->position))
 			{
-				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK, nt->position);
-				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK, nt->position);
+				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK_DB, nt->position);
+				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK_DB, nt->position);
 				struct Sci_TextRange tr;
 				tr.chrg.cpMin = start;
 				tr.chrg.cpMax = end;
@@ -262,24 +328,25 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
         gchar *data;
         gchar *config_dir = g_path_get_dirname(unk_info->config_file);
 
-        //~ config_file = g_strconcat(geany->app->configdir,
-            //~ G_DIR_SEPARATOR_S, "plugins", G_DIR_SEPARATOR_S,
-            //~ "unk", G_DIR_SEPARATOR_S, "general.conf", NULL);
-
-        unk_info->enable_parse_on_open_document = gtk_toggle_button_get_active(
-			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_parse_on_open_document));
+        unk_info->enable_urls_detect_on_open_document = gtk_toggle_button_get_active(
+			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_urls_detect_on_open_document));
+		
+		unk_info->enable_db_detect_on_open_document = gtk_toggle_button_get_active(
+			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_db_detect_on_open_document));
 		
 		SETPTR(unk_info->db_path, g_strdup(gtk_entry_get_text(GTK_ENTRY(config_widgets->entry_db_path))));
 		
 		/* write stuff to file */
         g_key_file_load_from_file(config, unk_info->config_file, G_KEY_FILE_NONE, NULL);
 
-        g_key_file_set_boolean(config, "general", "enable_parse_on_open_document",
-            unk_info->enable_parse_on_open_document);
+        g_key_file_set_boolean(config, "general", "enable_urls_detect_on_open_document",
+            unk_info->enable_urls_detect_on_open_document);
+		g_key_file_set_boolean(config, "general", "enable_db_detect_on_open_document",
+            unk_info->enable_db_detect_on_open_document);
 
 		g_key_file_set_string(config, "general", "db_path", unk_info->db_path);
 		
-		        if (!g_file_test(config_dir, G_FILE_TEST_IS_DIR)
+		if (!g_file_test(config_dir, G_FILE_TEST_IS_DIR)
             && utils_mkdir(config_dir, TRUE) != 0)
         {
             dialogs_show_msgbox(GTK_MESSAGE_ERROR,
@@ -296,4 +363,98 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
         g_free(config_dir);
         g_key_file_free(config);
     }
+}
+
+GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data)
+{
+	GtkWidget *label_db_path, *entry_db_path, *vbox, *checkbox_enable_urls_detect_on_open_document, *checkbox_enable_db_detect_on_open_document;
+
+	vbox = gtk_vbox_new(FALSE, 6);
+
+	{
+		label_db_path = gtk_label_new(_("Database path:"));
+		entry_db_path = gtk_entry_new();
+		if (unk_info->db_path != NULL)
+			gtk_entry_set_text(GTK_ENTRY(entry_db_path), unk_info->db_path);
+		config_widgets->entry_db_path = entry_db_path;
+		
+		gtk_container_add(GTK_CONTAINER(vbox), label_db_path);
+		gtk_container_add(GTK_CONTAINER(vbox), entry_db_path);
+	}
+	
+	{
+		checkbox_enable_urls_detect_on_open_document = gtk_check_button_new_with_mnemonic(_("_Enable url detect on open document"));
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox_enable_urls_detect_on_open_document), unk_info->enable_urls_detect_on_open_document);
+		//gtk_button_set_focus_on_click(GTK_BUTTON(checkbox_enable_urls_detect_on_open_document), FALSE);
+		config_widgets->checkbox_enable_urls_detect_on_open_document = checkbox_enable_urls_detect_on_open_document;
+		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_urls_detect_on_open_document, FALSE, FALSE, 6);
+	}
+	
+	{
+		checkbox_enable_db_detect_on_open_document = gtk_check_button_new_with_mnemonic(_("_Enable detect of words from database on open document"));
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox_enable_db_detect_on_open_document), unk_info->enable_db_detect_on_open_document);
+		//gtk_button_set_focus_on_click(GTK_BUTTON(checkbox_enable_db_detect_on_open_document), FALSE);
+		config_widgets->checkbox_enable_db_detect_on_open_document = checkbox_enable_db_detect_on_open_document;
+		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_db_detect_on_open_document, FALSE, FALSE, 6);
+	}
+	
+	gtk_widget_show_all(vbox);
+
+	g_signal_connect(dialog, "response", G_CALLBACK(on_configure_response), NULL);
+	return vbox;
+}
+
+static void on_submenu_item_urls_detect_activate(G_GNUC_UNUSED GtkMenuItem *menuitem, G_GNUC_UNUSED gpointer user_data)
+{
+	GeanyDocument *doc = document_get_current();
+	gint doc_length = sci_get_length(doc->editor->sci);
+	set_url_marks(doc->editor, 0, doc_length);
+}
+
+static void on_submenu_item_db_detect_activate(G_GNUC_UNUSED GtkMenuItem *menuitem, G_GNUC_UNUSED gpointer user_data)
+{
+	GeanyDocument *doc = document_get_current();
+	gint doc_length = sci_get_length(doc->editor->sci);
+	set_db_marks(doc->editor, 0, doc_length);
+}
+
+void menu_init(void)
+{
+	menu_widgets = g_malloc (sizeof (menu_widgets));
+	
+	menu_widgets->main_menu = gtk_menu_new();
+	
+	main_menu_item = gtk_menu_item_new_with_mnemonic(_("_Url Notes Keeper"));
+	//gtk_widget_show(main_menu_item);
+	gtk_container_add(GTK_CONTAINER(geany_data->main_widgets->tools_menu), main_menu_item);
+	
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(main_menu_item), menu_widgets->main_menu);
+
+	{
+		menu_widgets->submenu_item_urls_detect = gtk_menu_item_new_with_label(_("Detect urls in document"));
+		gtk_widget_show(menu_widgets->submenu_item_urls_detect);
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu_widgets->main_menu), menu_widgets->submenu_item_urls_detect);
+		g_signal_connect(menu_widgets->submenu_item_urls_detect, "activate",
+			G_CALLBACK(on_submenu_item_urls_detect_activate), NULL);
+	}
+	
+	{
+		menu_widgets->submenu_item_db_detect = gtk_menu_item_new_with_label(_("Detect words from database in document"));
+		gtk_widget_show(menu_widgets->submenu_item_db_detect);
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu_widgets->main_menu), menu_widgets->submenu_item_db_detect);
+		g_signal_connect(menu_widgets->submenu_item_db_detect, "activate",
+			G_CALLBACK(on_submenu_item_db_detect_activate), NULL);
+	}
+	
+	
+	gtk_widget_show_all(main_menu_item);
+	
+	/* make the menu item sensitive only when documents are open */
+	ui_add_document_sensitive(main_menu_item);
+
+}
+
+void menu_cleanup(void)
+{
+	gtk_widget_destroy(main_menu_item);
 }
