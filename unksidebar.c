@@ -24,8 +24,8 @@ gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event
     GtkTextIter end;
     
     GtkTextBuffer* buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (sidebar.unk_text_view));
-		
-    if (gtk_text_buffer_get_modified (buffer)) 
+	
+	if (gtk_text_buffer_get_modified (buffer)) 
     {
 		const gchar* const_key = gtk_label_get_text(GTK_LABEL(sidebar.unk_view_label));
 		gchar* key = g_strdup(const_key);
@@ -37,11 +37,21 @@ gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event
 		unk_db_set(key, value);
 		gtk_text_buffer_set_modified (buffer, FALSE);
 		gtk_widget_set_sensitive (sidebar.unk_text_view, TRUE);
-		//g_free(const_key);
 		g_free(key);
 		g_free(value);
+		
+		GeanyDocument *doc = document_get_current();
+		if (doc)
+		{
+			gint doc_length = sci_get_length(doc->editor->sci);
+			if ( doc_length > 0)
+			{
+				set_db_marks(doc->editor, 0, doc_length); //TODO: more precise at update
+			}
+		}
+		
 	}
-	return TRUE;
+	return FALSE;
 }
 
 void sidebar_set_url(gpointer text)

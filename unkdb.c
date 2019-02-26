@@ -88,7 +88,7 @@ gchar* unk_db_get(const gchar* key, const gchar* default_value)
 		return value;
     }
     
-    rc = sqlite3_bind_text(stmt, 1, key, strlen(key)+1, 0);
+    rc = sqlite3_bind_text(stmt, 1, key, strlen(key)+1, SQLITE_TRANSIENT );
     if (rc != SQLITE_OK) {
 		SHOW_ERROR(rc, "sqlite3_bind_text", dbc);
 		return value;
@@ -127,7 +127,7 @@ gboolean unk_db_set(const gchar* key, const gchar* value)
 	ret = sqlite3_prepare_v2 (dbc, "REPLACE INTO urlnotes (url, note) VALUES (?1,?2)", -1, &stmt, NULL);
 	HANDLE_ERROR(ret, "sqlite3_prepare_v2", dbc);
 
-	ret = sqlite3_bind_text(stmt, 1, key,  strlen(key)+1, NULL);
+	ret = sqlite3_bind_text(stmt, 1, key,  strlen(key)+1, SQLITE_TRANSIENT );
     HANDLE_ERROR(ret, "sqlite3_prepare_v2", dbc);
 	
 	ret = sqlite3_bind_text(stmt, 2, value, strlen(value)+1, NULL);
