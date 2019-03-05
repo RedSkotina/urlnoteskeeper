@@ -209,15 +209,15 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_AUTO_DETECTED, 0x007f00);
 	
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_POSITIVE_DB, INDIC_STRAIGHTBOX);
-	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_POSITIVE_DB, 30);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_POSITIVE_DB, 60);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_POSITIVE_DB, 0x00FC00);	
 	
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEUTRAL_DB, INDIC_STRAIGHTBOX);
-	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEUTRAL_DB, 30);
-	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEUTRAL_DB, 0x7b7b7b);	
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEUTRAL_DB, 60);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEUTRAL_DB, 0xFC0000);	
 	
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEGATIVE_DB, INDIC_STRAIGHTBOX);
-	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEGATIVE_DB, 30);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEGATIVE_DB, 60);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEGATIVE_DB, 0x0000FC);	
 		
 	if (unk_info->enable_urls_detect_on_open_document)
