@@ -197,6 +197,8 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 
 	/**** text ****/
 	sidebar.unk_text_view = gtk_text_view_new ();
+	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(sidebar.unk_text_view),GTK_WRAP_WORD);
+	
 	buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (sidebar.unk_text_view));
 	gtk_text_buffer_set_text (buffer, "", -1);
 	gtk_widget_add_events(sidebar.unk_text_view, GDK_FOCUS_CHANGE_MASK);
