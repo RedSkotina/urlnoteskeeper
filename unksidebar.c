@@ -168,7 +168,7 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 	/**** radio buttons ****/
 	//GtkWidget *radio1, *radio2, *radio3, *rating_box;
 	 
-	sidebar.rating_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3);
+	sidebar.rating_box = gtk_hbox_new (GTK_ORIENTATION_HORIZONTAL, 3);
 	gtk_box_set_homogeneous (GTK_BOX (sidebar.rating_box), TRUE);
 
 	sidebar.radio1 = gtk_radio_button_new_with_mnemonic  ( NULL, "-");
