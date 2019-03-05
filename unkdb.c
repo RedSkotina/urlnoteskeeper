@@ -1,144 +1,444 @@
 #include <geanyplugin.h>
 
 #include <sqlite3.h>
-//#include <wordexp.h>
+
 #include <glib.h>
 #include <glib/gprintf.h>
 #include "unkdb.h"
-static sqlite3* dbc = NULL;
+
+#define SQLITE_DB_FILE_SUFFIX ".sqlite3"
+#define SQLITE_DB_USER_VERSION 2
+
+static sqlite3* primary_dbc = NULL;
+static GList* secondary_dbc_list = NULL;
+
+
 
 #define HANDLE_ERROR(r, f, h) \
- if (r != SQLITE_OK && r != SQLITE_DONE) \
- { \
- extract_error(r, f, h, __LINE__,__func__); \
- return FALSE; \
- }
+	 if (r != SQLITE_OK && r != SQLITE_DONE) \
+	 { \
+		extract_error(r, f, h, __LINE__,__func__); \
+		return FALSE; \
+	 }
 
 #define SHOW_ERROR(r, f, h) \
- if (r != SQLITE_OK && r != SQLITE_DONE) \
- { \
- extract_error(r, f, h, __LINE__,__func__); \
- }
+	if (r != SQLITE_OK && r != SQLITE_DONE) \
+	{ \
+		gchar *err_msg = extract_error(r, f, h, __LINE__,__func__); \
+		g_print("%s",err_msg); \
+	}
+
+#define GET_ERROR(r, f, h) \
+	((r != SQLITE_OK && r != SQLITE_DONE)? extract_error(r, f, h, __LINE__,__func__) : NULL)
+	
  
-void
-extract_error (int retcode, char *fn, sqlite3 *dbc, int line, const char *func)
+gchar*
+extract_error (int retcode, gchar *fn, sqlite3 *dbc, int line, const char *func)
 {
-	 const char *err = NULL;
-
-	 g_print ("\nError!!! In '%s' (line no. %d) ", func, line-1);
-	 g_print ("\nSQLite reported following error for %s : Error-code = %d", fn, retcode);
-
-	 err = sqlite3_errmsg (dbc);
-	 if (err)
-		g_print ("\nError-Message : %s\n\n",err);
+	gchar* buffer = g_malloc(255);
+	gchar *temp = g_malloc(255);
+	const char *err = NULL;
+	
+	g_sprintf(buffer, "Error!!! In '%s' (line no. %d)\nSQLite reported following error for %s : Error-code = %d\n", func, line-1, fn, retcode);
+	err = sqlite3_errmsg (dbc);
+	if (err)
+	{
+		g_sprintf(temp, "Error-Message : %s\n", err);
+		g_strlcat(buffer, temp, 255);
+	}
+	g_free(temp);
+	return buffer; 
+	 
 }
+
 gchar* expand_shell_replacers(const gchar* filename)
 {
 	gchar **split = g_strsplit(filename, G_DIR_SEPARATOR_S, -1);
 	for (int i =0; i < g_strv_length (split); i++)
 		if (*split[i] == '~')
-			SETPTR(split[i], g_get_home_dir());
+			SETPTR(split[i], g_strdup(g_get_home_dir()));
 	
 	gchar* text = g_strjoinv(G_DIR_SEPARATOR_S, split);
 	g_strfreev(split);
 	return text;
 }
  
-gint unk_db_init(const gchar* filename)
-{
-	sqlite3_stmt *stmt;
-	gint ret;
-	gchar* p;
-	p = expand_shell_replacers(filename);
-	
-	gint rc = sqlite3_open(p , &dbc);
-	//HANDLE_ERROR(ret, "sqlite3_open", dbc);
-	if (rc != SQLITE_OK)
-	{
-		g_print("sqlite3_open error: %s", sqlite3_errmsg(dbc));
-		g_print("database path: %s", p);
-		return rc;
-	}	
-	gchar* sql = "CREATE TABLE IF NOT EXISTS urlnotes("  \
-      "URL TEXT PRIMARY KEY     NOT NULL," \
-      "NOTE           TEXT    NOT NULL);";
+gint get_user_version(sqlite3* dbc)
+ {
+    static sqlite3_stmt *stmt;
+    int db_version;
 
-	ret = sqlite3_prepare_v2 (dbc, sql, -1, &stmt, NULL);
-	HANDLE_ERROR(ret, "sqlite3_prepare_v2", dbc);
-	
-	ret = sqlite3_step (stmt);
-	HANDLE_ERROR(ret, "sqlite3_step", dbc);
+    if(sqlite3_prepare_v2(dbc, "PRAGMA user_version;", -1, &stmt, NULL) == SQLITE_OK) {
+        while(sqlite3_step(stmt) == SQLITE_ROW) {
+            db_version = sqlite3_column_int(stmt, 0);
+        }
+    } else {
+		g_print("sqlite3_prepare_v2 return error: %s", sqlite3_errmsg(dbc));
+    }
+    sqlite3_finalize(stmt);
 
-	sqlite3_finalize(stmt);
-	
-	g_free(p);
-
-	return rc;
+    return db_version;
 }
 
-gchar* unk_db_get(const gchar* key, const gchar* default_value)
-{	
-	gchar* value = g_strdup(default_value);
+static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_version)
+{
+	sqlite3_stmt *stmt = NULL;
+	gint ret;
+	gchar sql[255];
+				
+	gint current_version = start_version;
+	while (current_version < end_version)
+	{
+		g_print("update database from user_version %d to %d", current_version, current_version + 1);
+				
+		switch (current_version)
+		{
+			case 1:
+				ret = sqlite3_exec(primary_dbc, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+				if (ret != SQLITE_OK)
+				{
+					SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
+					return current_version; 
+				}
+				
+				ret = sqlite3_exec(primary_dbc, "ALTER TABLE urlnotes ADD RATING INTEGER NOT NULL DEFAULT 0;", NULL, NULL, NULL);
+				if (ret != SQLITE_OK)
+				{
+					SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
+					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+					return current_version; 
+				}
+				
+				//sqlite3_reset(stmt);
+				//HANDLE_ERROR(ret, "sqlite3_reset", primary_dbc);
+				
+				g_sprintf(sql, "PRAGMA user_version = %d;", current_version + 1);
+				ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
+				if (ret != SQLITE_OK)
+				{
+					SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc)
+					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+					return current_version; 
+				}
+				
+				//~ ret = sqlite3_bind_int(stmt, 1, current_version + 1 );
+				//~ if (ret != SQLITE_OK)
+				//~ {
+					//~ SHOW_ERROR(ret, "sqlite3_bind_int", primary_dbc)
+					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+					//~ return current_version; 
+				//~ }
+				
+				ret = sqlite3_step (stmt);
+				if (ret != SQLITE_OK && ret != SQLITE_DONE)
+				{
+					SHOW_ERROR(ret, "sqlite3_step", primary_dbc)
+					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+					return current_version; 
+				}
+	
+				ret = sqlite3_exec(primary_dbc, "COMMIT TRANSACTION;", NULL, NULL, NULL);
+				if (ret != SQLITE_OK)
+				{
+					SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
+					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+					return current_version; 
+				}
+				sqlite3_reset(stmt);
+	
+				break;
+		}
+		
+		g_print("success");
+				
+		current_version++;
+	}
+	
+	sqlite3_finalize(stmt);
+				
+	return current_version;
+}
+
+gint unk_db_init(const gchar* filepath)
+{
+	sqlite3** secondary_dbc = NULL;
 	sqlite3_stmt *stmt;
-	gint rc;
-	gchar* sql = "SELECT note FROM urlnotes WHERE url=?1 LIMIT 1;";
-	rc = sqlite3_prepare_v2(dbc, sql, strlen(sql)+1, &stmt, 0);    
-    if (rc != SQLITE_OK) {
-		SHOW_ERROR(rc, "sqlite3_prepare_v2", dbc);
-		return value;
+	gint ret = 0;
+	gchar *native_filepath, *dirname, *db_filename;
+	const gchar *filename;
+	GDir *db_dir;
+    GError *dir_error;
+    gint user_version;
+    
+	native_filepath = expand_shell_replacers(filepath);
+	
+	dirname = g_path_get_dirname(native_filepath);
+	
+	db_dir = g_dir_open(dirname, 0, &dir_error);
+	if (db_dir == NULL)
+	{
+		g_print("cant open primary database directory '%s'", dirname);
+		if (dir_error != NULL)
+		{
+			g_print("error: %s", dir_error->message);
+			g_clear_error (&dir_error);
+		}
+		g_free(dirname);
+		g_free(native_filepath);
+		return 1;
+	}
+	
+	// primary database
+	ret = sqlite3_open_v2(native_filepath , &primary_dbc, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+	if (ret != SQLITE_OK)
+	{
+		g_print("sqlite3_open_v2 primary database '%s' return error: %s", native_filepath, sqlite3_errmsg(primary_dbc));
+		primary_dbc = NULL;
+		g_free(dirname);
+		g_free(native_filepath);
+		return 1;
+	}
+	
+	if ((user_version = get_user_version(primary_dbc)) == 0)
+	{
+		gchar* sql = 	"CREATE TABLE IF NOT EXISTS urlnotes("  \
+					"URL TEXT PRIMARY KEY     NOT NULL," \
+					"NOTE           TEXT    NOT NULL," \
+					"RATING INTEGER NOT NULL DEFAULT 0);";
+
+		ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
+		HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+		
+		ret = sqlite3_step (stmt);
+		HANDLE_ERROR(ret, "sqlite3_step", primary_dbc);
+
+		sqlite3_reset(stmt);
+		HANDLE_ERROR(ret, "sqlite3_reset", primary_dbc);
+
+		ret = sqlite3_prepare_v2 (primary_dbc, "PRAGMA user_version = ?1;", -1, &stmt, NULL);
+		HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+		
+		ret = sqlite3_bind_int(stmt, 1, SQLITE_DB_USER_VERSION );
+		HANDLE_ERROR(ret, "sqlite3_bind_int", primary_dbc);
+
+		ret = sqlite3_step (stmt);
+		HANDLE_ERROR(ret, "sqlite3_step", primary_dbc);
+
+		sqlite3_finalize(stmt);
+	}
+	else
+	{
+		if (user_version > 0 && user_version < SQLITE_DB_USER_VERSION)
+		{
+			user_version = unk_update_db_schema(primary_dbc, user_version, SQLITE_DB_USER_VERSION);
+		}
+		else if (user_version == SQLITE_DB_USER_VERSION) 
+		{
+			//ok
+		}
+		else
+			g_print("primary database '%s' has wrong user_version %d . Current user_version %d", native_filepath, user_version, SQLITE_DB_USER_VERSION);
+	};
+
+			
+	//secondary database
+	while ((filename = g_dir_read_name(db_dir)))
+	{
+		if (g_str_has_suffix(filename, SQLITE_DB_FILE_SUFFIX)) 
+		{
+			db_filename = g_build_filename (dirname, filename, NULL);
+			
+			if (g_strcmp0(db_filename, native_filepath) != 0 )
+			{
+				gint ret = sqlite3_open_v2(db_filename , secondary_dbc, SQLITE_OPEN_READONLY, NULL);
+				if (ret != SQLITE_OK)
+				{ 
+					g_print("sqlite3_open_v2 secondary database '%s' return error: %s", db_filename, sqlite3_errmsg(*secondary_dbc));
+					secondary_dbc = NULL;
+					g_free(db_filename);
+					continue;
+				}
+				//TODO: verify schema: PRAGMA schema_version; or PRAGMA user_version;
+				// SELECT * FROM sqlite_master;
+				if ((user_version = get_user_version(*secondary_dbc)) == SQLITE_DB_USER_VERSION)
+				{
+					struct DBInfo* db = g_malloc(sizeof (struct DBInfo));
+					db->name = g_strdup(filename);
+					db->dbc = *secondary_dbc;
+					secondary_dbc_list = g_list_append(secondary_dbc_list, db);
+				}
+				else 
+					g_print("secondary database '%s' has wrong user_version %d instead %d", db_filename, user_version, SQLITE_DB_USER_VERSION);
+				
+					
+			}
+			g_free(db_filename);
+		}
+		
+    }
+	
+	g_dir_close(db_dir);
+	g_free(dirname);
+	g_free(native_filepath);
+	return ret;
+}
+
+struct DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
+{	
+	struct DBRow* row = g_malloc(sizeof(struct DBRow));
+    row->error = NULL;
+    row->url = g_strdup(key);
+	row->note = NULL;
+    row->rating = 0;
+       
+	sqlite3_stmt *stmt = NULL;
+	gint ret;
+	
+	gchar* sql = "SELECT note, rating FROM urlnotes WHERE url=?1 LIMIT 1;";
+	ret = sqlite3_prepare_v2(primary_dbc, sql, strlen(sql)+1, &stmt, 0);    
+    if (ret != SQLITE_OK) {
+		SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+		return row;
     }
     
-    rc = sqlite3_bind_text(stmt, 1, key, strlen(key)+1, SQLITE_TRANSIENT );
-    if (rc != SQLITE_OK) {
-		SHOW_ERROR(rc, "sqlite3_bind_text", dbc);
-		return value;
+    ret = sqlite3_bind_text(stmt, 1, key, strlen(key), SQLITE_TRANSIENT );
+    if (ret != SQLITE_OK) {
+		SHOW_ERROR(ret, "sqlite3_bind_text", primary_dbc);
+		return row;
     }
-    	
-    rc = sqlite3_step(stmt);		
-    if ( rc == SQLITE_ROW )
+    
+    //g_print("%s", sqlite3_expanded_sql(stmt));
+    
+    ret = sqlite3_step(stmt);		
+    if ( ret == SQLITE_ROW )
     {
-		value = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
+		row->note = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
+		row->rating = (gint)sqlite3_column_int(stmt,1);
 	}
-    else if (rc == SQLITE_DONE)
+    else if (ret == SQLITE_DONE)
     {
-		//g_print("db_get: not found %s ", key);
+		//key not found 
+		row->note = g_strdup(default_value);
 	}
     else
     {
-		SHOW_ERROR(rc, "sqlite3_step", dbc);
+		SHOW_ERROR(ret, "sqlite3_step", primary_dbc);
 		const char *err = NULL;
-		err = sqlite3_errmsg (dbc);
+		err = sqlite3_errmsg (primary_dbc);
 		if (err)
 			g_print ("\nError-Message : %s\n\n",err);
+		row->error = g_strdup(err);
 	}
          
 	sqlite3_finalize(stmt);
-	
-	return value;
+	return row;
 }
 
-gboolean unk_db_set(const gchar* key, const gchar* value)
+static void row_hashtable_key_destroyed(gpointer key) {
+	g_free((gchar*)key);
+}
+
+void row_destroyed(gpointer value) {
+	g_free(((struct DBRow*)value)->url);
+	g_free(((struct DBRow*)value)->note);
+	g_free((struct DBRow*)value);
+}
+
+GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
+{	
+	GHashTable* ht = g_hash_table_new_full (NULL, NULL, row_hashtable_key_destroyed, row_destroyed);
+    
+    sqlite3_stmt *stmt = NULL;
+	gint ret;
+	gchar* sql = "SELECT note, rating FROM urlnotes WHERE url=?1 LIMIT 1;";
+	    
+	for (GList* it = secondary_dbc_list; it; it = it->next) 
+	{
+        struct DBRow* row = g_malloc(sizeof(struct DBRow));
+        struct DBInfo* db = (struct DBInfo*)(it->data);
+        
+        row->url = g_strdup(key);
+        row->note = NULL;
+        row->rating = 0;
+        
+        ret = sqlite3_prepare_v2(db->dbc, sql, strlen(sql)+1, &stmt, 0);    
+        if (ret != SQLITE_OK) {
+            row->error = GET_ERROR(ret, "sqlite3_prepare_v2", db->dbc);
+            goto select_continue;
+        }
+        
+        ret = sqlite3_bind_text(stmt, 1, key, strlen(key), SQLITE_TRANSIENT );
+        if (ret != SQLITE_OK) {
+            row->error = GET_ERROR(ret, "sqlite3_bind_text", db->dbc);
+            goto select_continue;
+        }
+        
+        ret = sqlite3_step(stmt);		
+        if ( ret == SQLITE_ROW )
+        {
+            row->note = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
+            row->rating = (gint)sqlite3_column_int(stmt,1);
+            row->error = NULL;
+        }
+        else if (ret == SQLITE_DONE)
+        {
+            row->note = g_strdup(default_value);
+        }
+        else
+        {
+            row->error = GET_ERROR(ret, "sqlite3_step", db->dbc);
+        }
+        
+    select_continue:
+        sqlite3_reset(stmt);
+    
+        g_hash_table_insert(ht, g_strdup(db->name), row);
+        
+    }
+             
+	sqlite3_finalize(stmt);
+	
+	return ht;
+}
+
+gboolean unk_db_set(const gchar* key, const gchar* value, gint rating)
 {
 	sqlite3_stmt *stmt;
 	gint ret;
 	
-	//ui_set_statusbar(TRUE, "db set: %s %s", (gchar*)key, (gchar*)value);
-	
-	ret = sqlite3_prepare_v2 (dbc, "REPLACE INTO urlnotes (url, note) VALUES (?1,?2)", -1, &stmt, NULL);
-	HANDLE_ERROR(ret, "sqlite3_prepare_v2", dbc);
+	ret = sqlite3_prepare_v2 (primary_dbc, "REPLACE INTO urlnotes (url, note, rating) VALUES (?1,?2,?3);", -1, &stmt, NULL);
+	HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 
-	ret = sqlite3_bind_text(stmt, 1, key,  strlen(key)+1, SQLITE_TRANSIENT );
-    HANDLE_ERROR(ret, "sqlite3_prepare_v2", dbc);
+	ret = sqlite3_bind_text(stmt, 1, key,  strlen(key), SQLITE_TRANSIENT );
+    HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 	
-	ret = sqlite3_bind_text(stmt, 2, value, strlen(value)+1, NULL);
-    HANDLE_ERROR(ret, "sqlite3_prepare_v2", dbc);
-
+	ret = sqlite3_bind_text(stmt, 2, value, strlen(value), NULL);
+    HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+	
+	ret = sqlite3_bind_int(stmt, 3, rating);
+    HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 		
 	ret = sqlite3_step (stmt);
-	HANDLE_ERROR(ret, "sqlite3_step", dbc);
+	HANDLE_ERROR(ret, "sqlite3_step", primary_dbc);
+	 
+	sqlite3_finalize(stmt);
+	
+	return TRUE;
+}
 
-	//ret = sqlite3_reset (stmt);
-	//HANDLE_ERROR(ret, "sqlite3_reset", dbc);
+gboolean unk_db_delete(const gchar* key)
+{
+	sqlite3_stmt *stmt;
+	gint ret;
+	
+	ret = sqlite3_prepare_v2 (primary_dbc, "DELETE FROM urlnotes WHERE url =  ?1;", -1, &stmt, NULL);
+	HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+
+	ret = sqlite3_bind_text(stmt, 1, key,  strlen(key), SQLITE_TRANSIENT );
+    HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+		
+	ret = sqlite3_step (stmt);
+	HANDLE_ERROR(ret, "sqlite3_step", primary_dbc);
 	 
 	sqlite3_finalize(stmt);
 	
@@ -153,9 +453,9 @@ GList* unk_db_get_keys()
 	gint ret;
 	
 	gchar* sql = "SELECT url FROM urlnotes;";
-	ret = sqlite3_prepare_v2(dbc, sql, strlen(sql)+1, &stmt, 0);    
+	ret = sqlite3_prepare_v2(primary_dbc, sql, strlen(sql)+1, &stmt, 0);    
     if (ret != SQLITE_OK) {
-		SHOW_ERROR(ret, "sqlite3_prepare_v2", dbc);
+		SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 		return list;
     }
     while ( (ret = sqlite3_step(stmt)) == SQLITE_ROW )
@@ -166,9 +466,9 @@ GList* unk_db_get_keys()
     
     if (ret != SQLITE_DONE)
     {
-		SHOW_ERROR(ret, "sqlite3_step", dbc);
+		SHOW_ERROR(ret, "sqlite3_step", primary_dbc);
 		const char *err = NULL;
-		err = sqlite3_errmsg (dbc);
+		err = sqlite3_errmsg (primary_dbc);
 		if (err)
 			g_print ("\nError-Message : %s\n\n",err);
 	}
@@ -178,14 +478,63 @@ GList* unk_db_get_keys()
 	return list;
 }
 
+GList* unk_db_get_all()
+{
+	
+	GList* list = NULL;
+	sqlite3_stmt *stmt;
+	gint ret;
+	
+	gchar* sql = "SELECT url,rating FROM urlnotes;";
+	ret = sqlite3_prepare_v2(primary_dbc, sql, strlen(sql)+1, &stmt, 0);    
+    if (ret != SQLITE_OK) {
+		SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+		return list;
+    }
+    while ( (ret = sqlite3_step(stmt)) == SQLITE_ROW )
+    {
+		struct DBRow* row = g_malloc(sizeof(struct DBRow));
+		row->error = NULL;
+		row->url = NULL;
+		row->note = NULL;
+		row->rating = 0;
+    
+		row->url = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
+		row->rating = (gint)sqlite3_column_int(stmt,1);
+		list = g_list_append(list, row);
+	}
+    
+    if (ret != SQLITE_DONE)
+    {
+		SHOW_ERROR(ret, "sqlite3_step", primary_dbc);
+		const char *err = NULL;
+		err = sqlite3_errmsg (primary_dbc);
+		if (err)
+			g_print ("\nError-Message : %s\n\n",err);
+	}
+         
+	sqlite3_finalize(stmt);
+	
+	return list;
+}
+static void dbc_list_destroyed(gpointer data) {
+	
+	gint ret = sqlite3_close_v2 ( ((struct DBInfo*)data)->dbc);
+	SHOW_ERROR(ret, "sqlite3_step", ((struct DBInfo*)data)->dbc);
+	g_free( ((struct DBInfo*)data)->name);
+}
+
 gint unk_db_cleanup(void)
 {
 	gint ret;
 	
-	if (dbc)
+	if (primary_dbc)
 	{
-		ret = sqlite3_close_v2 (dbc);
-		HANDLE_ERROR(ret, "sqlite3_step", dbc);
+		ret = sqlite3_close_v2 (primary_dbc);
+		SHOW_ERROR(ret, "sqlite3_step", primary_dbc);
 	}
+	
+	g_list_free_full (secondary_dbc_list, dbc_list_destroyed);
 	return ret;
 }
+

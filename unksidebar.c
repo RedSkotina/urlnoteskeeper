@@ -13,10 +13,13 @@ typedef struct SIDEBAR
 {
     GtkWidget *unk_view_vbox;
     GtkWidget *unk_view_label;
-    GtkWidget *unk_text_view;  
+    GtkWidget *unk_text_view;
+    GtkWidget *radio1, *radio2, *radio3, *rating_box;
+	 
 }SIDEBAR;
 
 static SIDEBAR sidebar = {NULL, NULL, NULL};
+
 
 gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event, G_GNUC_UNUSED gpointer user_data)
 {
@@ -25,7 +28,7 @@ gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event
     
     GtkTextBuffer* buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (sidebar.unk_text_view));
 	
-	if (gtk_text_buffer_get_modified (buffer)) 
+	if (gtk_text_buffer_get_modified (buffer) ) 
     {
 		const gchar* const_key = gtk_label_get_text(GTK_LABEL(sidebar.unk_view_label));
 		gchar* key = g_strdup(const_key);
@@ -34,7 +37,17 @@ gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event
 		gtk_text_buffer_get_start_iter (buffer, &start);
 		gtk_text_buffer_get_end_iter (buffer, &end);
 		gchar* value = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
-		unk_db_set(key, value);
+		
+		gint rating = 0;
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio1)))
+			rating = -1;
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio2)))
+			rating = 0;
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio3)))
+			rating = 1;
+		
+		unk_db_set(key, value, rating);
+		
 		gtk_text_buffer_set_modified (buffer, FALSE);
 		gtk_widget_set_sensitive (sidebar.unk_text_view, TRUE);
 		g_free(key);
@@ -43,6 +56,8 @@ gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event
 		GeanyDocument *doc = document_get_current();
 		if (doc)
 		{
+			clear_all_db_marks(doc->editor);
+			
 			gint doc_length = sci_get_length(doc->editor->sci);
 			if ( doc_length > 0)
 			{
@@ -65,6 +80,24 @@ void sidebar_set_note(gpointer text)
 	gtk_text_buffer_set_text(buffer, text, strlen(text));	
 }
 
+void sidebar_set_rating(gint rating)
+{
+	switch (rating) {
+		case -1:
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio1), TRUE);
+			break;
+		case 0:
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio2), TRUE);
+   			break;
+		case 1:
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio3), TRUE);
+			break;
+		default:
+			g_print("wrong rating %d", rating);
+			
+	}
+}
+
 void sidebar_show(GeanyPlugin* geany_plugin)
 {
 	gtk_widget_show_all(sidebar.unk_view_vbox);
@@ -77,6 +110,50 @@ void sidebar_show(GeanyPlugin* geany_plugin)
 	
 }
 
+static void radio_button_on_toggle (GtkToggleButton *source, gpointer user_data) {
+  //printf ("Active: %d\n", gtk_toggle_button_get_active (source));
+	gint rating = 0;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio1)))
+		rating = -1;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio2)))
+		rating = 0;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio3)))
+		rating = 1;
+
+	if (gtk_toggle_button_get_active (source)) {
+		
+		GtkTextIter start;
+		GtkTextIter end;
+    
+		GtkTextBuffer* buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (sidebar.unk_text_view));
+	
+		const gchar* const_key = gtk_label_get_text(GTK_LABEL(sidebar.unk_view_label));
+		gchar* key = g_strdup(const_key);
+		
+		gtk_text_buffer_get_start_iter (buffer, &start);
+		gtk_text_buffer_get_end_iter (buffer, &end);
+		gchar* value = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+		
+		unk_db_set(key, value, rating);
+		
+		g_free(key);
+		g_free(value);
+		
+		GeanyDocument *doc = document_get_current();
+		if (doc)
+		{
+			clear_all_db_marks(doc->editor);
+			
+			gint doc_length = sci_get_length(doc->editor->sci);
+			if ( doc_length > 0)
+			{
+				set_db_marks(doc->editor, 0, doc_length); //TODO: more precise at update
+			}
+		}
+		
+	}
+}
+
 void sidebar_init(GeanyPlugin* geany_plugin)
 {
 	GtkWidget *scrollwin;
@@ -87,6 +164,36 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 	/**** label ****/
 	sidebar.unk_view_label = gtk_label_new (_("No url selected."));
 	gtk_box_pack_start(GTK_BOX(sidebar.unk_view_vbox), sidebar.unk_view_label, FALSE, FALSE, 0);
+
+	/**** radio buttons ****/
+	//GtkWidget *radio1, *radio2, *radio3, *rating_box;
+	 
+	sidebar.rating_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3);
+	gtk_box_set_homogeneous (GTK_BOX (sidebar.rating_box), TRUE);
+
+	sidebar.radio1 = gtk_radio_button_new_with_mnemonic  ( NULL, "-");
+	sidebar.radio2 = gtk_radio_button_new_with_label_from_widget   ( GTK_RADIO_BUTTON (sidebar.radio1), " ");
+	sidebar.radio3 = gtk_radio_button_new_with_label_from_widget   ( GTK_RADIO_BUTTON (sidebar.radio1), "+");
+	
+	gtk_widget_set_size_request(sidebar.radio1, 80, 20);
+	gtk_widget_set_size_request(sidebar.radio2, 80, 20);
+	gtk_widget_set_size_request(sidebar.radio3, 80, 20);
+
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio1), FALSE);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio2), FALSE);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio3), FALSE);
+
+	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio2), TRUE);
+   
+	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio1), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
+	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio2), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
+	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio3), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
+
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio1, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio2, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio3, FALSE, FALSE, 0);
+
+	gtk_box_pack_start(GTK_BOX(sidebar.unk_view_vbox), sidebar.rating_box, FALSE, FALSE, 0);
 
 	/**** text ****/
 	sidebar.unk_text_view = gtk_text_view_new ();

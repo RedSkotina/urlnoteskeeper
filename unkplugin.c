@@ -59,11 +59,11 @@ static void config_init(void)
 
     unk_info->enable_db_detect_on_open_document = utils_get_setting_boolean(
 		config, "general", "enable_db_detect_on_open_document", TRUE);
-	
-	unk_info->db_path = utils_get_setting_string(
-		config, "general", "db_path", "~/unk.db");
 
-	 g_key_file_free(config);
+	unk_info->db_path = utils_get_setting_string(
+		config, "general", "db_path", "~/unk.sqlite3");
+	
+	g_key_file_free(config);
 }
 
 /* Called by Geany to initialize the plugin */
@@ -120,8 +120,8 @@ void geany_load_module(GeanyPlugin *plugin)
 	main_locale_init(LOCALEDIR, GETTEXT_PACKAGE);
 	plugin->info->name = _("URLNotesKeeper");
 	plugin->info->description = _(" Edit and keep your notes for any url in text.");
-	plugin->info->version = "0.1";
-	plugin->info->author =  _("Dmitry Naumov");
+	plugin->info->version = "0.2";
+	plugin->info->author =  _("RedSkotina");
 
 	plugin->funcs->init = unk_plugin_init;
 	plugin->funcs->configure = unk_plugin_configure;

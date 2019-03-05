@@ -9,6 +9,8 @@ void sidebar_set_url(gpointer text);
 
 void sidebar_set_note(gpointer text);
 
+void sidebar_set_rating(gint rating);
+
 void sidebar_show(GeanyPlugin* geany_plugin);
 	
 void sidebar_init(GeanyPlugin* geany_plugin);

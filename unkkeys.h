@@ -7,6 +7,7 @@
 enum KEYS
 {
 	KEY_ADD,
+	KEY_DELETE,
 	KEY_DETECT_URLS,
 	KEY_DETECT_DB
 };

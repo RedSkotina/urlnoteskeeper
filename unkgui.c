@@ -9,13 +9,36 @@
 #include "unksidebar.h"
 #include "unkdb.h"
 
-static gint GEANY_INDICATOR_UNK_AUTO_DETECTED = 23;
-static gint GEANY_INDICATOR_UNK_DB = 24;
+
+gint GEANY_INDICATOR_UNK_AUTO_DETECTED = 23;
+
+gint GEANY_INDICATOR_UNK_POSITIVE_DB = 24;
+gint GEANY_INDICATOR_UNK_NEUTRAL_DB = 25;
+gint GEANY_INDICATOR_UNK_NEGATIVE_DB = 26;
 
 static GtkWidget *main_menu_item = NULL;
 ConfigWidgets* config_widgets = NULL;
 MenuWidgets* menu_widgets = NULL;
 
+gint get_indicator_id_by_rating(gint rating) 
+{
+	gint res = 0;
+	switch(rating)
+	{
+		case -1:
+			res = GEANY_INDICATOR_UNK_NEGATIVE_DB;
+			break;
+		case 0:
+			res = GEANY_INDICATOR_UNK_NEUTRAL_DB;
+			break;
+		case 1:
+			res = GEANY_INDICATOR_UNK_POSITIVE_DB;
+			break;
+		default:
+			g_print("unknown rating value %d", rating);
+	}
+	return res;
+}
 gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 {
 	gint wstart, wend;
@@ -78,7 +101,7 @@ GList* search_marks(GeanyEditor *editor, const gchar *search_text)
 	
 	while ((start_pos = scintilla_send_message(sci, SCI_FINDTEXT, flags, (sptr_t)&ttf)) != -1)
 	{
-		URLPosition* pos = (URLPosition*)g_malloc0(sizeof(URLPosition));
+		MarkInfo* pos = (MarkInfo*)g_malloc0(sizeof(MarkInfo));
 		pos->start = ttf.chrgText.cpMin;
 		pos->end = ttf.chrgText.cpMax;
 		list = g_list_append(list, pos);
@@ -90,12 +113,12 @@ GList* search_marks(GeanyEditor *editor, const gchar *search_text)
 	return list;
 }
 
-void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos) 
+void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos, gint rating) 
 {
-	editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK_DB , range_start_pos, range_end_pos);
-	scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_DB, INDIC_STRAIGHTBOX);
-	scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_DB, 30);
-	scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_DB, 0x007f00);
+	editor_indicator_set_on_range(editor, get_indicator_id_by_rating( rating ) , range_start_pos, range_end_pos);
+	//scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEUTRAL_DB, INDIC_STRAIGHTBOX);
+	//scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEUTRAL_DB, 30);
+	//scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_NEUTRAL_DB, 0x007f00);
 }
 
 void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
@@ -112,13 +135,10 @@ void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos
 	
 	for (iterator = list_url; iterator; iterator = iterator->next) 
 	{
-		gint cur_start_pos = range_start_pos + ((URLPosition*)(iterator->data))->start;
-		gint cur_end_pos = range_start_pos + ((URLPosition*)(iterator->data))->end;
+		gint cur_start_pos = range_start_pos + ((MarkInfo*)(iterator->data))->start;
+		gint cur_end_pos = range_start_pos + ((MarkInfo*)(iterator->data))->end;
 		
 		editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK_AUTO_DETECTED , cur_start_pos, cur_end_pos);
-		scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_AUTO_DETECTED, INDIC_BOX);
-		scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_AUTO_DETECTED, 50);
-		scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_AUTO_DETECTED, 0x007f00);
 	}
 	
 	g_list_free_full (list_url, g_free);
@@ -127,36 +147,50 @@ void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos
 
 void set_db_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 {
-	GList* list_url = NULL, *list_db = NULL, *list_db2 = NULL, *list_keys = NULL, *iterator = NULL;
-	
+	GList *list_db = NULL, *list_db2 = NULL, *list_keys = NULL, *iterator = NULL, *it2 = NULL ;
 	struct Sci_TextRange tr;
 	tr.chrg.cpMin = range_start_pos;
 	tr.chrg.cpMax = range_end_pos;
 	tr.lpstrText = g_malloc(range_end_pos - range_start_pos + 1);
 	scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 	
-	list_keys = unk_db_get_keys();
+	list_keys = unk_db_get_all();
 	for (iterator = list_keys; iterator; iterator = iterator->next) 
 	{
-		list_db2 = search_marks(editor, (gchar*)iterator->data);
+		list_db2 = search_marks(editor, ((struct DBRow*)iterator->data)->url);
+		for (it2 = list_db2; it2; it2 = it2->next) 
+		{
+			((MarkInfo*)(it2->data))->rating = ((struct DBRow*)iterator->data)->rating;
+		}
+		
 		list_db = g_list_concat(list_db, list_db2);
 	};
-	g_list_free_full (list_keys, g_free);
+	g_list_free_full (list_keys, row_destroyed );
 	
 	
 	for (iterator = list_db; iterator; iterator = iterator->next) 
 	{
-		gint cur_start_pos = range_start_pos + ((URLPosition*)(iterator->data))->start;
-		gint cur_end_pos = range_start_pos + ((URLPosition*)(iterator->data))->end;
+		gint cur_start_pos = range_start_pos + ((MarkInfo*)(iterator->data))->start;
+		gint cur_end_pos = range_start_pos + ((MarkInfo*)(iterator->data))->end;
 		
-		editor_indicator_set_on_range(editor, GEANY_INDICATOR_UNK_DB , cur_start_pos, cur_end_pos);
-		scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_DB, INDIC_STRAIGHTBOX);
-		scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_DB, 30);
-		scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_DB, 0x007f00);
+		gint indicator_id = get_indicator_id_by_rating(((MarkInfo*)(iterator->data))->rating); 
+		editor_indicator_set_on_range(editor, indicator_id, cur_start_pos, cur_end_pos);
 	}
 	
-	g_list_free_full (list_url, g_free);
+	g_list_free_full (list_db, g_free);
 	g_free(tr.lpstrText); 
+}
+
+void clear_all_db_marks(GeanyEditor *editor)
+{
+	gint len = sci_get_length(editor->sci);
+	scintilla_send_message(editor->sci, SCI_SETINDICATORCURRENT, GEANY_INDICATOR_UNK_POSITIVE_DB, 0);
+	scintilla_send_message(editor->sci, SCI_INDICATORCLEARRANGE, 0, len);
+	scintilla_send_message(editor->sci, SCI_SETINDICATORCURRENT, GEANY_INDICATOR_UNK_NEUTRAL_DB, 0);
+	scintilla_send_message(editor->sci, SCI_INDICATORCLEARRANGE, 0, len);
+	scintilla_send_message(editor->sci, SCI_SETINDICATORCURRENT, GEANY_INDICATOR_UNK_NEGATIVE_DB, 0);
+	scintilla_send_message(editor->sci, SCI_INDICATORCLEARRANGE, 0, len);
+	
 }
 
 /*
@@ -169,7 +203,22 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 
 	/* set tab size for calltips */
 	scintilla_send_message(doc->editor->sci, SCI_CALLTIPUSESTYLE, 20, (long)NULL);
-		
+	
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_AUTO_DETECTED, INDIC_BOX);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_AUTO_DETECTED, 50);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_AUTO_DETECTED, 0x007f00);
+	
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_POSITIVE_DB, INDIC_STRAIGHTBOX);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_POSITIVE_DB, 30);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_POSITIVE_DB, 0x007f00);	
+	
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEUTRAL_DB, INDIC_STRAIGHTBOX);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEUTRAL_DB, 30);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEUTRAL_DB, 0xdca86f);	
+	
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEGATIVE_DB, INDIC_STRAIGHTBOX);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEGATIVE_DB, 30);
+	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEGATIVE_DB, 0x6666e0);	
 		
 	if (unk_info->enable_urls_detect_on_open_document)
 	{
@@ -194,6 +243,10 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 	gchar* word;
 	gchar prev_char;
 	gint cur_pos;
+	gboolean indicator_exist = FALSE;
+	gint indicator_id = 0;
+	gint indicator_bitmap = 0;
+			
 	/* For detailed documentation about the SCNotification struct, please see
 	 * http://www.scintilla.org/ScintillaDoc.html#Notifications. */
 	switch (nt->nmhdr.code)
@@ -229,11 +282,31 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			}
 			break;
 		case SCN_INDICATORCLICK:
+			indicator_exist = FALSE;
+			indicator_id = 0;
+			indicator_bitmap = scintilla_send_message(editor->sci, SCI_INDICATORALLONFOR, nt->position, 0);
 			
-			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_DB, nt->position))
+			if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_POSITIVE_DB))) 
 			{
-				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK_DB, nt->position);
-				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK_DB, nt->position);
+				indicator_exist = TRUE;
+				indicator_id = GEANY_INDICATOR_UNK_POSITIVE_DB;
+			};
+			if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_NEUTRAL_DB)))
+			{
+				indicator_exist = TRUE;
+				indicator_id = GEANY_INDICATOR_UNK_NEUTRAL_DB;
+			};
+			if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_NEGATIVE_DB))) 
+			{
+				indicator_exist = TRUE;
+				indicator_id = GEANY_INDICATOR_UNK_NEGATIVE_DB;
+			};
+					
+			//if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_DB, nt->position))
+			if (indicator_exist)
+			{
+				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, indicator_id, nt->position);
+				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, indicator_id, nt->position);
 				
 				struct Sci_TextRange tr;
 				tr.chrg.cpMin = start;
@@ -243,14 +316,18 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 				sidebar_set_url(tr.lpstrText);
 				
-				gchar* note = unk_db_get(tr.lpstrText, "");
-				sidebar_set_note(note);
+				struct DBRow* row = unk_db_get_primary(tr.lpstrText, "");
+				
+				sidebar_set_note(row->note);
+				
+				sidebar_set_rating(row->rating);
 				
 				sidebar_activate();
 				sidebar_show(geany_plugin);			
 				
 				g_free(tr.lpstrText);
-				g_free(note);
+				g_free(row->note);
+				g_free(row);
 				
 			}
 			else if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_AUTO_DETECTED, nt->position))
@@ -269,6 +346,8 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				gchar* note = g_strdup("");
 				sidebar_set_note(note);
 				
+				sidebar_set_rating(0);
+				
 				sidebar_activate();
 				sidebar_show(geany_plugin);			
 				
@@ -280,21 +359,64 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 								
 			break;
 		case SCN_DWELLSTART:
-			if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_DB, nt->position))
+			indicator_exist = FALSE;
+			indicator_id = 0;
+			indicator_bitmap = scintilla_send_message(editor->sci, SCI_INDICATORALLONFOR, nt->position, 0);
+			
+			if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_POSITIVE_DB))) 
 			{
-				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, GEANY_INDICATOR_UNK_DB, nt->position);
-				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, GEANY_INDICATOR_UNK_DB, nt->position);
+				indicator_exist = TRUE;
+				indicator_id = GEANY_INDICATOR_UNK_POSITIVE_DB;
+			};
+			if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_NEUTRAL_DB)))
+			{
+				indicator_exist = TRUE;
+				indicator_id = GEANY_INDICATOR_UNK_NEUTRAL_DB;
+			};
+			if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_NEGATIVE_DB))) 
+			{
+				indicator_exist = TRUE;
+				indicator_id = GEANY_INDICATOR_UNK_NEGATIVE_DB;
+			};
+				
+			if (indicator_exist)
+			{
+				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, indicator_id, nt->position);
+				gint end = scintilla_send_message(editor->sci, SCI_INDICATOREND, indicator_id, nt->position);
 				struct Sci_TextRange tr;
 				tr.chrg.cpMin = start;
 				tr.chrg.cpMax = end;
 				tr.lpstrText = g_malloc(end - start + 1);
 				scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 				
-				gchar* note = unk_db_get(tr.lpstrText, "none");
-				scintilla_send_message(editor->sci, SCI_CALLTIPSHOW, nt->position, (sptr_t)note);
+				GString *text = g_string_new(NULL);
+				gchar* notes_delimiter = "------------------\n";
+				struct DBRow* row = unk_db_get_primary(tr.lpstrText, "none");
+				text = g_string_append(text, row->note);
+				text = g_string_append_c(text, '\n');
 				
+				GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none");
+				
+				GHashTableIter it;
+				gpointer key, value;
+				
+				g_hash_table_iter_init (&it, secondary_rows);
+				while (g_hash_table_iter_next (&it, &key, &value))
+				{
+					text = g_string_append(text, notes_delimiter);
+					text = g_string_append(text, (gchar*)key);
+					text = g_string_append_c(text, '\n');
+					text = g_string_append(text, ((struct DBRow*)value)->note);
+					text = g_string_append_c(text, '\n');
+				}
+				
+				scintilla_send_message(editor->sci, SCI_CALLTIPSHOW, nt->position, (sptr_t)(text->str));
+				
+				g_string_free (text, TRUE);
+				g_hash_table_destroy (secondary_rows);
 				g_free(tr.lpstrText);
-				g_free(note);
+				g_free(row->note);
+				g_free(row);
 			}
 			break;
 		case SCN_DWELLEND:

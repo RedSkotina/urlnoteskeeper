@@ -1,6 +1,17 @@
 #ifndef UNK_GUI_H
 #define UNK_GUI_H 1
 
+extern gint GEANY_INDICATOR_UNK_AUTO_DETECTED;
+extern gint GEANY_INDICATOR_UNK_POSITIVE_DB;
+extern gint GEANY_INDICATOR_UNK_NEUTRAL_DB;
+extern gint GEANY_INDICATOR_UNK_NEGATIVE_DB;
+
+typedef struct {
+ gint start;
+ gint end;
+ gint rating;
+} MarkInfo;
+
 typedef struct {
  GtkWidget* checkbox_enable_urls_detect_on_open_document;
  GtkWidget* checkbox_enable_db_detect_on_open_document;
@@ -9,13 +20,15 @@ typedef struct {
 
 extern ConfigWidgets* config_widgets;	
 
-void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos);
+void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos, gint rating) ;
 
 void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos);
 
 void set_db_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos);
 
 void set_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos);
+
+void clear_all_db_marks(GeanyEditor *editor);
 
 void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data);
 
