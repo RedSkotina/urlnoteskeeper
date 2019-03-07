@@ -18,7 +18,7 @@ typedef struct SIDEBAR
 	 
 }SIDEBAR;
 
-static SIDEBAR sidebar = {NULL, NULL, NULL};
+static SIDEBAR sidebar = {NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 
 gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event, G_GNUC_UNUSED gpointer user_data)
@@ -189,9 +189,9 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio2), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
 	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio3), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
 
-	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio1, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio2, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio3, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio1, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio2, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio3, TRUE, TRUE, 0);
 
 	gtk_box_pack_start(GTK_BOX(sidebar.unk_view_vbox), sidebar.rating_box, FALSE, FALSE, 0);
 

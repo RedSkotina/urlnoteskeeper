@@ -6,16 +6,20 @@ extern gint GEANY_INDICATOR_UNK_POSITIVE_DB;
 extern gint GEANY_INDICATOR_UNK_NEUTRAL_DB;
 extern gint GEANY_INDICATOR_UNK_NEGATIVE_DB;
 
-typedef struct {
+typedef struct MarkInfo{
  gint start;
  gint end;
  gint rating;
 } MarkInfo;
 
-typedef struct {
+typedef struct ConfigWidgets{
  GtkWidget* checkbox_enable_urls_detect_on_open_document;
  GtkWidget* checkbox_enable_db_detect_on_open_document;
  GtkWidget* entry_db_path;
+ GtkColorButton * button_positive_rating_color;
+ GtkColorButton * button_neutral_rating_color;
+ GtkColorButton * button_negative_rating_color;
+  
 } ConfigWidgets;
 
 extern ConfigWidgets* config_widgets;	
@@ -41,7 +45,7 @@ void on_configure_response(GtkDialog *dialog, gint response, gpointer user_data)
 
 GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data);
 
-typedef struct
+typedef struct MenuWidgets
 {
 	GtkWidget* main_menu;
 	GtkWidget* submenu_item_urls_detect;

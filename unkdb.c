@@ -283,9 +283,9 @@ gint unk_db_init(const gchar* filepath)
 	return ret;
 }
 
-struct DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
+DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
 {	
-	struct DBRow* row = g_malloc(sizeof(struct DBRow));
+	DBRow* row = g_malloc(sizeof(DBRow));
     row->error = NULL;
     row->url = g_strdup(key);
 	row->note = NULL;
@@ -339,9 +339,9 @@ static void row_hashtable_key_destroyed(gpointer key) {
 }
 
 void row_destroyed(gpointer value) {
-	g_free(((struct DBRow*)value)->url);
-	g_free(((struct DBRow*)value)->note);
-	g_free((struct DBRow*)value);
+	g_free(((DBRow*)value)->url);
+	g_free(((DBRow*)value)->note);
+	g_free((DBRow*)value);
 }
 
 GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
@@ -354,8 +354,8 @@ GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
 	    
 	for (GList* it = secondary_dbc_list; it; it = it->next) 
 	{
-        struct DBRow* row = g_malloc(sizeof(struct DBRow));
-        struct DBInfo* db = (struct DBInfo*)(it->data);
+        DBRow* row = g_malloc(sizeof(DBRow));
+        DBInfo* db = (DBInfo*)(it->data);
         
         row->url = g_strdup(key);
         row->note = NULL;
@@ -406,6 +406,17 @@ gboolean unk_db_set(const gchar* key, const gchar* value, gint rating)
 	sqlite3_stmt *stmt;
 	gint ret;
 	
+	if (key == NULL )
+	{
+		g_print("error unk_db_set: key == NULL");
+		return FALSE;
+	}
+	if (!strlen(key) )
+	{
+		g_print("error unk_db_set: strlen(key) == 0");
+		return FALSE;
+	}
+	
 	ret = sqlite3_prepare_v2 (primary_dbc, "REPLACE INTO urlnotes (url, note, rating) VALUES (?1,?2,?3);", -1, &stmt, NULL);
 	HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 
@@ -430,6 +441,17 @@ gboolean unk_db_delete(const gchar* key)
 {
 	sqlite3_stmt *stmt;
 	gint ret;
+	
+	if (key == NULL )
+	{
+		g_print("error unk_db_delete: key == NULL");
+		return FALSE;
+	}
+	if (!strlen(key) )
+	{
+		g_print("error unk_db_delete: strlen(key) == 0");
+		return FALSE;
+	}
 	
 	ret = sqlite3_prepare_v2 (primary_dbc, "DELETE FROM urlnotes WHERE url =  ?1;", -1, &stmt, NULL);
 	HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
@@ -493,7 +515,7 @@ GList* unk_db_get_all()
     }
     while ( (ret = sqlite3_step(stmt)) == SQLITE_ROW )
     {
-		struct DBRow* row = g_malloc(sizeof(struct DBRow));
+		DBRow* row = g_malloc(sizeof(DBRow));
 		row->error = NULL;
 		row->url = NULL;
 		row->note = NULL;
@@ -519,9 +541,9 @@ GList* unk_db_get_all()
 }
 static void dbc_list_destroyed(gpointer data) {
 	
-	gint ret = sqlite3_close_v2 ( ((struct DBInfo*)data)->dbc);
-	SHOW_ERROR(ret, "sqlite3_step", ((struct DBInfo*)data)->dbc);
-	g_free( ((struct DBInfo*)data)->name);
+	gint ret = sqlite3_close_v2 ( ((DBInfo*)data)->dbc);
+	SHOW_ERROR(ret, "sqlite3_step", ((DBInfo*)data)->dbc);
+	g_free( ((DBInfo*)data)->name);
 }
 
 gint unk_db_cleanup(void)

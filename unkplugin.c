@@ -55,13 +55,45 @@ static void config_init(void)
 	g_key_file_load_from_file(config, unk_info->config_file, G_KEY_FILE_NONE, NULL);
 
     unk_info->enable_urls_detect_on_open_document = utils_get_setting_boolean(
-		config, "general", "enable_url_detect_on_open_document", FALSE);
+		config, "general", "enable_urls_detect_on_open_document", FALSE);
 
     unk_info->enable_db_detect_on_open_document = utils_get_setting_boolean(
 		config, "general", "enable_db_detect_on_open_document", TRUE);
 
 	unk_info->db_path = utils_get_setting_string(
 		config, "general", "db_path", "~/unk.sqlite3");
+	
+	unk_info->positive_rating_color = g_malloc0(sizeof(GdkRGBA));
+	gchar* positive_rating_color_s = utils_get_setting_string(
+		config, "colors", "positive_rating_color", "rgba(0,255,0,0.6)");
+	
+	if (!gdk_rgba_parse (unk_info->positive_rating_color, positive_rating_color_s))
+	{
+		g_print("cant parse positive_rating_color string '%s'",positive_rating_color_s);
+		gdk_rgba_parse (unk_info->positive_rating_color, "rgba(0,255,0,0.6)");
+	};
+	g_free(positive_rating_color_s);
+	
+	
+	unk_info->neutral_rating_color = g_malloc0(sizeof(GdkRGBA));
+	gchar* neutral_rating_color_s = utils_get_setting_string(
+		config, "colors", "neutral_rating_color", "rgba(0,0,255,0.6)");
+	if (!gdk_rgba_parse (unk_info->neutral_rating_color, neutral_rating_color_s))
+	{
+		g_print("cant parse neutral_rating_color string '%s'",neutral_rating_color_s);
+		gdk_rgba_parse (unk_info->neutral_rating_color, "rgba(0,0,255,0.6)");
+	};
+	g_free(neutral_rating_color_s);
+	
+	unk_info->negative_rating_color = g_malloc0(sizeof(GdkRGBA));
+	gchar* negative_rating_color_s = utils_get_setting_string(
+		config, "colors", "negative_rating_color", "rgba(255,0,0,0.6)");
+	if (!gdk_rgba_parse (unk_info->negative_rating_color, negative_rating_color_s))
+	{
+		g_print("cant parse negative_rating_color string '%s'",negative_rating_color_s);
+		gdk_rgba_parse (unk_info->negative_rating_color, "rgba(255,0,0,0.6)");
+	};
+	g_free(negative_rating_color_s);
 	
 	g_key_file_free(config);
 }
@@ -72,8 +104,8 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 	geany_plugin = plugin;
 	geany_data = plugin->geany_data;
 	
-	config_widgets = g_malloc (sizeof (config_widgets));
-	unk_info = g_malloc (sizeof (unk_info));
+	config_widgets = g_malloc (sizeof (ConfigWidgets));
+	unk_info = g_malloc (sizeof (UnkInfo));
 	
 	config_init();
 	
@@ -107,9 +139,12 @@ static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, g
  * Be sure to leave Geany as it was before plugin_init(). */
 static void unk_plugin_cleanup(GeanyPlugin *plugin, gpointer data)
 {
-	menu_cleanup();
-	sidebar_cleanup();
 	unk_db_cleanup();
+	sidebar_cleanup();
+	menu_cleanup();
+	g_free(unk_info->positive_rating_color);
+	g_free(unk_info->neutral_rating_color);
+	g_free(unk_info->negative_rating_color);
 	g_free(unk_info);
 	g_free(config_widgets);
 }
