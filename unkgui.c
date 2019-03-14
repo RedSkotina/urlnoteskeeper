@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "gtk3compat.h"
 #include "unkgui.h"
 #include "unkmatcher.h"
 #include "unkplugin.h"

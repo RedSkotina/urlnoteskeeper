@@ -20,6 +20,7 @@
 #include "geanyplugin.h"	/* plugin API, always comes first */
 #include "Scintilla.h"	/* for the SCNotification struct */
 
+#include "gtk3compat.h"
 #include "unkplugin.h"
 #include "unkgui.h"
 #include "unksidebar.h"

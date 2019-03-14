@@ -53,13 +53,20 @@ extract_error (int retcode, gchar *fn, sqlite3 *dbc, int line, const char *func)
 
 gchar* expand_shell_replacers(const gchar* filename)
 {
-	gchar **split = g_strsplit(filename, G_DIR_SEPARATOR_S, -1);
+	//separator unix  - > platform-specific 
+    gchar **split0 = g_strsplit(filename, "/", -1);
+	gchar* text0 = g_strjoinv(G_DIR_SEPARATOR_S, split0);
+	g_strfreev(split0);
+	
+    gchar **split = g_strsplit(text0, G_DIR_SEPARATOR_S, -1);
 	for (int i =0; i < g_strv_length (split); i++)
 		if (*split[i] == '~')
 			SETPTR(split[i], g_strdup(g_get_home_dir()));
 	
 	gchar* text = g_strjoinv(G_DIR_SEPARATOR_S, split);
 	g_strfreev(split);
+    
+    g_free(text0);
 	return text;
 }
  
@@ -161,8 +168,8 @@ static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_vers
 
 gint unk_db_init(const gchar* filepath)
 {
-	sqlite3** secondary_dbc = NULL;
-	sqlite3_stmt *stmt;
+	sqlite3* secondary_dbc = NULL;
+	//sqlite3_stmt *stmt;
 	gint ret = 0;
 	gchar *native_filepath, *dirname, *db_filename;
 	const gchar *filename;
@@ -170,7 +177,7 @@ gint unk_db_init(const gchar* filepath)
     GError *dir_error;
     gint user_version;
     
-	native_filepath = expand_shell_replacers(filepath);
+    native_filepath = expand_shell_replacers(filepath);
 	
 	dirname = g_path_get_dirname(native_filepath);
 	
@@ -201,30 +208,67 @@ gint unk_db_init(const gchar* filepath)
 	
 	if ((user_version = get_user_version(primary_dbc)) == 0)
 	{
-		gchar* sql = 	"CREATE TABLE IF NOT EXISTS urlnotes("  \
+        ret = sqlite3_exec(primary_dbc, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+        if (ret != SQLITE_OK)
+        {
+            SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
+            return 1; 
+        }
+        
+        gchar* sql = 	"CREATE TABLE IF NOT EXISTS urlnotes("  \
 					"URL TEXT PRIMARY KEY     NOT NULL," \
 					"NOTE           TEXT    NOT NULL," \
 					"RATING INTEGER NOT NULL DEFAULT 0);";
 
-		ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
-		HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+		//ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
+		//SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 		
-		ret = sqlite3_step (stmt);
-		HANDLE_ERROR(ret, "sqlite3_step", primary_dbc);
+		//ret = sqlite3_step (stmt);
+		//SHOW_ERROR(ret, "sqlite3_step", primary_dbc);
 
-		sqlite3_reset(stmt);
-		HANDLE_ERROR(ret, "sqlite3_reset", primary_dbc);
-
-		ret = sqlite3_prepare_v2 (primary_dbc, "PRAGMA user_version = ?1;", -1, &stmt, NULL);
-		HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+        ret = sqlite3_exec(primary_dbc, sql, NULL, NULL, NULL);
+        if (ret != SQLITE_OK)
+        {
+            SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
+            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+            return 1; 
+        }
+        
+		//sqlite3_reset(stmt);
+		//SHOW_ERROR(ret, "sqlite3_reset", primary_dbc);
+        gchar sql2[255];
+        g_sprintf(sql2, "PRAGMA user_version = %d;", SQLITE_DB_USER_VERSION);
+        ret = sqlite3_exec(primary_dbc, sql2, NULL, NULL, NULL);
+        if (ret != SQLITE_OK)
+        {
+            SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
+            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+            return 1; 
+        }
+       
+        // ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
+        // if (ret != SQLITE_OK)
+        // {
+            // SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc)
+            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+            // return 1; 
+        // }
 		
-		ret = sqlite3_bind_int(stmt, 1, SQLITE_DB_USER_VERSION );
-		HANDLE_ERROR(ret, "sqlite3_bind_int", primary_dbc);
-
-		ret = sqlite3_step (stmt);
-		HANDLE_ERROR(ret, "sqlite3_step", primary_dbc);
-
-		sqlite3_finalize(stmt);
+		// if (ret != SQLITE_OK && ret != SQLITE_DONE)
+        // {
+            // SHOW_ERROR(ret, "sqlite3_step", primary_dbc)
+            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+            // return 1; 
+        // }
+	
+        ret = sqlite3_exec(primary_dbc, "COMMIT TRANSACTION;", NULL, NULL, NULL);
+        if (ret != SQLITE_OK)
+        {
+            SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
+            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+            return 1; 
+        }
+        //sqlite3_finalize(stmt);
 	}
 	else
 	{
@@ -235,12 +279,12 @@ gint unk_db_init(const gchar* filepath)
 		else if (user_version == SQLITE_DB_USER_VERSION) 
 		{
 			//ok
-		}
+    	}
 		else
 			g_print("primary database '%s' has wrong user_version %d . Current user_version %d", native_filepath, user_version, SQLITE_DB_USER_VERSION);
-	};
+    };
 
-			
+	    		
 	//secondary database
 	while ((filename = g_dir_read_name(db_dir)))
 	{
@@ -250,21 +294,23 @@ gint unk_db_init(const gchar* filepath)
 			
 			if (g_strcmp0(db_filename, native_filepath) != 0 )
 			{
-				gint ret = sqlite3_open_v2(db_filename , secondary_dbc, SQLITE_OPEN_READONLY, NULL);
-				if (ret != SQLITE_OK)
+				g_print("open secondary database: %s",db_filename);
+                gint ret = sqlite3_open_v2(db_filename , &secondary_dbc, SQLITE_OPEN_READONLY, NULL);
+				
+                if (ret != SQLITE_OK)
 				{ 
-					g_print("sqlite3_open_v2 secondary database '%s' return error: %s", db_filename, sqlite3_errmsg(*secondary_dbc));
+					g_print("sqlite3_open_v2 secondary database '%s' return error: %s", db_filename, sqlite3_errmsg(secondary_dbc));
 					secondary_dbc = NULL;
 					g_free(db_filename);
 					continue;
 				}
 				//TODO: verify schema: PRAGMA schema_version; or PRAGMA user_version;
 				// SELECT * FROM sqlite_master;
-				if ((user_version = get_user_version(*secondary_dbc)) == SQLITE_DB_USER_VERSION)
+				if ((user_version = get_user_version(secondary_dbc)) == SQLITE_DB_USER_VERSION)
 				{
 					struct DBInfo* db = g_malloc(sizeof (struct DBInfo));
 					db->name = g_strdup(filename);
-					db->dbc = *secondary_dbc;
+					db->dbc = secondary_dbc;
 					secondary_dbc_list = g_list_append(secondary_dbc_list, db);
 				}
 				else 
