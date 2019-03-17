@@ -4,6 +4,8 @@
 
 #include <glib.h>
 #include <glib/gprintf.h>
+#include <glib/gstdio.h>
+//#include <glib/gi18n.h>
 #include "unkdb.h"
 
 #define SQLITE_DB_FILE_SUFFIX ".sqlite3"
@@ -12,7 +14,7 @@
 static sqlite3* primary_dbc = NULL;
 static GList* secondary_dbc_list = NULL;
 
-
+static gchar* primary_db_filename = NULL;
 
 #define HANDLE_ERROR(r, f, h) \
 	 if (r != SQLITE_OK && r != SQLITE_DONE) \
@@ -166,6 +168,48 @@ static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_vers
 	return current_version;
 }
 
+gboolean unk_db_lock_create(gchar* filename)
+{
+	gchar* uuid = NULL;
+	gssize uuid_size;
+	
+	gchar* lock_filename;
+	
+	lock_filename = g_strconcat (filename, ".lock", NULL);
+	
+	if (!g_file_test (lock_filename, G_FILE_TEST_EXISTS)) 
+	{
+		uuid = g_uuid_string_random();
+		uuid_size = strlen(uuid);	
+		g_file_set_contents(lock_filename, uuid, uuid_size, NULL);
+	}
+	else
+	{
+		g_free(lock_filename);
+		g_free(uuid);
+		return FALSE;
+	}	
+	g_free(lock_filename);
+	g_free(uuid);
+	return TRUE;
+}
+
+gboolean unk_db_lock_remove(gchar* filename)
+{
+	gchar* lock_filename = g_strconcat (filename, ".lock", NULL);
+	
+	if (g_file_test (lock_filename, G_FILE_TEST_EXISTS)) 
+	{
+		if( g_remove (lock_filename) != 0) 
+		{
+			g_free(lock_filename);
+			return FALSE;
+		}
+	}
+	g_free(lock_filename);
+	return TRUE;
+}
+
 gint unk_db_init(const gchar* filepath)
 {
 	sqlite3* secondary_dbc = NULL;
@@ -179,6 +223,13 @@ gint unk_db_init(const gchar* filepath)
     
     native_filepath = expand_shell_replacers(filepath);
 	
+	primary_db_filename = g_strdup(native_filepath);
+	
+	if (!unk_db_lock_create(primary_db_filename))
+	{
+		g_print("cant lock database. another instance of plugin probably running.");
+		return 1;
+	}
 	dirname = g_path_get_dirname(native_filepath);
 	
 	db_dir = g_dir_open(dirname, 0, &dir_error);
@@ -603,6 +654,12 @@ gint unk_db_cleanup(void)
 	}
 	
 	g_list_free_full (secondary_dbc_list, dbc_list_destroyed);
+	
+	if (!unk_db_lock_remove(primary_db_filename))
+	{
+		g_print("cant remove database lock '%s'. remove it manually.", primary_db_filename);
+	}
+	g_free(primary_db_filename);
 	return ret;
 }
 

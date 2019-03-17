@@ -1,13 +1,14 @@
-#include <gtk/gtk.h>
 #include <stdio.h>
 #include <math.h>
+#include <errno.h>
+#include <gtk/gtk.h>
 
 #include "gtk3compat.h"
 
 
 #if !GTK_CHECK_VERSION(3,4,0)
 
-#define        ERANGE                34        /* Math result not representable */
+//#define        ERANGE                34        /* Math result not representable */
 #define SKIP_WHITESPACES(s) while (*(s) == ' ') (s)++;
 
 static gboolean
