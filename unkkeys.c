@@ -19,10 +19,10 @@ typedef struct _keyinfo {
 
 /* hotkeys list */
 keyinfo keys[] = {
-	{ "key_add", N_("Add word to database"), KEY_ADD},
-	{ "key_delete", N_("Delete word from database"), KEY_DELETE},
-	{ "key_detect_urls", N_("Detect urls in text"), KEY_DETECT_URLS},
-	{ "key_detect_db", N_("Detect words from database in text"), KEY_DETECT_DB},
+	{ "key_add", _("Add word to database"), KEY_ADD},
+	{ "key_delete", _("Delete word from database"), KEY_DELETE},
+	{ "key_detect_urls", _("Detect urls in text"), KEY_DETECT_URLS},
+	{ "key_detect_db", _("Detect words from database in text"), KEY_DETECT_DB},
 	{ NULL, NULL, 0}
 };
 
@@ -31,7 +31,8 @@ keyinfo keys[] = {
  */
 gboolean keys_init(void)
 {
-	int _index, count;
+	g_debug("keys_init");
+    int _index, count;
 
 	/* keys count */
 	count = 0;
@@ -92,10 +93,11 @@ gboolean keys_callback(guint key_id)
 						sidebar_set_note("");
 						sidebar_set_rating(0);
 				
-				
-						sidebar_activate();
+                        
 						sidebar_show(geany_plugin);			
-				
+                        sidebar_hide_all_secondary_frames();
+                        sidebar_activate();
+						
 					}
 					g_free(row->note);
 					g_free(row);
@@ -150,12 +152,14 @@ gboolean keys_callback(guint key_id)
 						if ( ok )
 						{
 						
-							sidebar_set_url("No url selected.");
+							sidebar_set_url(_("No url selected."));
 							sidebar_set_note("");
 							sidebar_set_rating(0);
 				
 							sidebar_deactivate();
 							
+                            sidebar_hide_all_secondary_frames();
+                            
 							clear_all_db_marks(doc->editor);
 			
 							gint doc_length = sci_get_length(doc->editor->sci);
@@ -164,6 +168,7 @@ gboolean keys_callback(guint key_id)
 								set_db_marks(doc->editor, 0, doc_length);
 								
 							}
+                            
 						}
 						g_free(tr.lpstrText);
 					}

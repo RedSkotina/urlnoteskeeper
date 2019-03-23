@@ -48,6 +48,7 @@ static PluginCallback unk_plugin_callbacks[] =
 
 static void config_init(void)
 {
+    g_debug("config_init");
     GKeyFile *config = g_key_file_new();
 	
     unk_info->config_file = g_strconcat(geany->app->configdir, G_DIR_SEPARATOR_S,
@@ -70,7 +71,7 @@ static void config_init(void)
 	
 	if (!gdk_rgba_parse (unk_info->positive_rating_color, positive_rating_color_s))
 	{
-		g_print("cant parse positive_rating_color string '%s'",positive_rating_color_s);
+		g_warning("cant parse positive_rating_color string '%s'",positive_rating_color_s);
 		gdk_rgba_parse (unk_info->positive_rating_color, "rgba(0,255,0,0.6)");
 	};
 	g_free(positive_rating_color_s);
@@ -81,7 +82,7 @@ static void config_init(void)
 		config, "colors", "neutral_rating_color", "rgba(0,0,255,0.6)");
 	if (!gdk_rgba_parse (unk_info->neutral_rating_color, neutral_rating_color_s))
 	{
-		g_print("cant parse neutral_rating_color string '%s'",neutral_rating_color_s);
+		g_warning("cant parse neutral_rating_color string '%s'",neutral_rating_color_s);
 		gdk_rgba_parse (unk_info->neutral_rating_color, "rgba(0,0,255,0.6)");
 	};
 	g_free(neutral_rating_color_s);
@@ -91,7 +92,7 @@ static void config_init(void)
 		config, "colors", "negative_rating_color", "rgba(255,0,0,0.6)");
 	if (!gdk_rgba_parse (unk_info->negative_rating_color, negative_rating_color_s))
 	{
-		g_print("cant parse negative_rating_color string '%s'",negative_rating_color_s);
+		g_warning("cant parse negative_rating_color string '%s'",negative_rating_color_s);
 		gdk_rgba_parse (unk_info->negative_rating_color, "rgba(255,0,0,0.6)");
 	};
 	g_free(negative_rating_color_s);
@@ -102,7 +103,8 @@ static void config_init(void)
 /* Called by Geany to initialize the plugin */
 static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 {
-	geany_plugin = plugin;
+	g_debug("unk_plugin_init");
+    geany_plugin = plugin;
 	geany_data = plugin->geany_data;
 	
 	config_widgets = g_malloc (sizeof (ConfigWidgets));
@@ -140,7 +142,8 @@ static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, g
  * Be sure to leave Geany as it was before plugin_init(). */
 static void unk_plugin_cleanup(GeanyPlugin *plugin, gpointer data)
 {
-	unk_db_cleanup();
+	g_debug("unk_plugin_cleanup");
+    unk_db_cleanup();
 	sidebar_cleanup();
 	menu_cleanup();
 	g_free(unk_info->positive_rating_color);
@@ -156,8 +159,8 @@ void geany_load_module(GeanyPlugin *plugin)
 	main_locale_init(LOCALEDIR, GETTEXT_PACKAGE);
 	plugin->info->name = _("URLNotesKeeper");
 	plugin->info->description = _(" Edit and keep your notes for any url in text.");
-	plugin->info->version = "0.2";
-	plugin->info->author =  _("RedSkotina");
+	plugin->info->version = "0.3";
+	plugin->info->author =  "RedSkotina";
 
 	plugin->funcs->init = unk_plugin_init;
 	plugin->funcs->configure = unk_plugin_configure;

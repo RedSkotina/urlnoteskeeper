@@ -27,7 +27,8 @@ static gchar* primary_db_filename = NULL;
 	if (r != SQLITE_OK && r != SQLITE_DONE) \
 	{ \
 		gchar *err_msg = extract_error(r, f, h, __LINE__,__func__); \
-		g_print("%s",err_msg); \
+		g_error("%s",err_msg); \
+        msgwin_status_add_string(err_msg); \
 	}
 
 #define GET_ERROR(r, f, h) \
@@ -41,11 +42,11 @@ extract_error (int retcode, gchar *fn, sqlite3 *dbc, int line, const char *func)
 	gchar *temp = g_malloc(255);
 	const char *err = NULL;
 	
-	g_sprintf(buffer, "Error!!! In '%s' (line no. %d)\nSQLite reported following error for %s : Error-code = %d\n", func, line-1, fn, retcode);
+	g_sprintf(buffer, "Sqlite error. In '%s' (line no. %d) reported for %s : Error-code = %d\n", func, line-1, fn, retcode);
 	err = sqlite3_errmsg (dbc);
 	if (err)
 	{
-		g_sprintf(temp, "Error-Message : %s\n", err);
+		g_sprintf(temp, "Error message : %s\n", err);
 		g_strlcat(buffer, temp, 255);
 	}
 	g_free(temp);
@@ -74,6 +75,7 @@ gchar* expand_shell_replacers(const gchar* filename)
  
 gint get_user_version(sqlite3* dbc)
  {
+    g_debug("get_user_version");
     static sqlite3_stmt *stmt;
     int db_version;
 
@@ -82,7 +84,7 @@ gint get_user_version(sqlite3* dbc)
             db_version = sqlite3_column_int(stmt, 0);
         }
     } else {
-		g_print("sqlite3_prepare_v2 return error: %s", sqlite3_errmsg(dbc));
+		g_error("sqlite3_prepare_v2 return error: %s", sqlite3_errmsg(dbc));
     }
     sqlite3_finalize(stmt);
 
@@ -91,14 +93,15 @@ gint get_user_version(sqlite3* dbc)
 
 static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_version)
 {
-	sqlite3_stmt *stmt = NULL;
+	g_debug("unk_update_db_schema");
+    sqlite3_stmt *stmt = NULL;
 	gint ret;
 	gchar sql[255];
 				
 	gint current_version = start_version;
 	while (current_version < end_version)
 	{
-		g_print("update database from user_version %d to %d", current_version, current_version + 1);
+		g_message("update database from user_version %d to %d", current_version, current_version + 1);
 				
 		switch (current_version)
 		{
@@ -158,7 +161,7 @@ static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_vers
 				break;
 		}
 		
-		g_print("success");
+		g_message("success");
 				
 		current_version++;
 	}
@@ -170,6 +173,7 @@ static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_vers
 
 gboolean unk_db_lock_create(gchar* filename)
 {
+	g_debug("unk_db_lock_create");
 	gchar* uuid = NULL;
 	gssize uuid_size;
 	
@@ -196,6 +200,7 @@ gboolean unk_db_lock_create(gchar* filename)
 
 gboolean unk_db_lock_remove(gchar* filename)
 {
+	g_debug("unk_db_lock_remove");
 	gchar* lock_filename = g_strconcat (filename, ".lock", NULL);
 	
 	if (g_file_test (lock_filename, G_FILE_TEST_EXISTS)) 
@@ -212,8 +217,8 @@ gboolean unk_db_lock_remove(gchar* filename)
 
 gint unk_db_init(const gchar* filepath)
 {
-	sqlite3* secondary_dbc = NULL;
-	//sqlite3_stmt *stmt;
+	g_debug("unk_db_init");
+    sqlite3* secondary_dbc = NULL;
 	gint ret = 0;
 	gchar *native_filepath, *dirname, *db_filename;
 	const gchar *filename;
@@ -227,18 +232,19 @@ gint unk_db_init(const gchar* filepath)
 	
 	if (!unk_db_lock_create(primary_db_filename))
 	{
-		g_print("cant lock database. another instance of plugin probably running.");
-		return 1;
+		g_error("cant lock database. another instance of plugin probably running.");
+		msgwin_status_add_string("cant lock database. another instance of plugin probably running."); 
+        return 1;
 	}
 	dirname = g_path_get_dirname(native_filepath);
 	
 	db_dir = g_dir_open(dirname, 0, &dir_error);
 	if (db_dir == NULL)
 	{
-		g_print("cant open primary database directory '%s'", dirname);
+		g_error("cant open primary database directory '%s'", dirname);
 		if (dir_error != NULL)
 		{
-			g_print("error: %s", dir_error->message);
+			g_error("error: %s", dir_error->message);
 			g_clear_error (&dir_error);
 		}
 		g_free(dirname);
@@ -250,7 +256,7 @@ gint unk_db_init(const gchar* filepath)
 	ret = sqlite3_open_v2(native_filepath , &primary_dbc, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
 	if (ret != SQLITE_OK)
 	{
-		g_print("sqlite3_open_v2 primary database '%s' return error: %s", native_filepath, sqlite3_errmsg(primary_dbc));
+		g_error("sqlite3_open_v2 primary database '%s' return error: %s", native_filepath, sqlite3_errmsg(primary_dbc));
 		primary_dbc = NULL;
 		g_free(dirname);
 		g_free(native_filepath);
@@ -332,7 +338,7 @@ gint unk_db_init(const gchar* filepath)
 			//ok
     	}
 		else
-			g_print("primary database '%s' has wrong user_version %d . Current user_version %d", native_filepath, user_version, SQLITE_DB_USER_VERSION);
+			g_error("primary database '%s' has wrong user_version %d . Current user_version %d", native_filepath, user_version, SQLITE_DB_USER_VERSION);
     };
 
 	    		
@@ -345,12 +351,12 @@ gint unk_db_init(const gchar* filepath)
 			
 			if (g_strcmp0(db_filename, native_filepath) != 0 )
 			{
-				g_print("open secondary database: %s",db_filename);
+				g_message("open secondary database: %s",db_filename);
                 gint ret = sqlite3_open_v2(db_filename , &secondary_dbc, SQLITE_OPEN_READONLY, NULL);
 				
                 if (ret != SQLITE_OK)
 				{ 
-					g_print("sqlite3_open_v2 secondary database '%s' return error: %s", db_filename, sqlite3_errmsg(secondary_dbc));
+					g_error("sqlite3_open_v2 secondary database '%s' return error: %s", db_filename, sqlite3_errmsg(secondary_dbc));
 					secondary_dbc = NULL;
 					g_free(db_filename);
 					continue;
@@ -365,7 +371,7 @@ gint unk_db_init(const gchar* filepath)
 					secondary_dbc_list = g_list_append(secondary_dbc_list, db);
 				}
 				else 
-					g_print("secondary database '%s' has wrong user_version %d instead %d", db_filename, user_version, SQLITE_DB_USER_VERSION);
+					g_error("secondary database '%s' has wrong user_version %d instead %d", db_filename, user_version, SQLITE_DB_USER_VERSION);
 				
 					
 			}
@@ -382,7 +388,8 @@ gint unk_db_init(const gchar* filepath)
 
 DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
 {	
-	DBRow* row = g_malloc(sizeof(DBRow));
+	g_debug("unk_db_get_primary");
+    DBRow* row = g_malloc(sizeof(DBRow));
     row->error = NULL;
     row->url = g_strdup(key);
 	row->note = NULL;
@@ -423,7 +430,7 @@ DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
 		const char *err = NULL;
 		err = sqlite3_errmsg (primary_dbc);
 		if (err)
-			g_print ("\nError-Message : %s\n\n",err);
+			g_error ("\nError message : %s\n\n",err);
 		row->error = g_strdup(err);
 	}
          
@@ -443,7 +450,8 @@ void row_destroyed(gpointer value) {
 
 GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
 {	
-	GHashTable* ht = g_hash_table_new_full (NULL, NULL, row_hashtable_key_destroyed, row_destroyed);
+	g_debug("unk_db_get_secondary");
+    GHashTable* ht = g_hash_table_new_full (g_str_hash, g_str_equal, row_hashtable_key_destroyed, row_destroyed);
     
     sqlite3_stmt *stmt = NULL;
 	gint ret;
@@ -500,17 +508,18 @@ GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
 
 gboolean unk_db_set(const gchar* key, const gchar* value, gint rating)
 {
-	sqlite3_stmt *stmt;
+	g_debug("unk_db_set");
+    sqlite3_stmt *stmt;
 	gint ret;
 	
 	if (key == NULL )
 	{
-		g_print("error unk_db_set: key == NULL");
+		g_error("error unk_db_set: key == NULL");
 		return FALSE;
 	}
 	if (!strlen(key) )
 	{
-		g_print("error unk_db_set: strlen(key) == 0");
+		g_error("error unk_db_set: strlen(key) == 0");
 		return FALSE;
 	}
 	
@@ -536,17 +545,18 @@ gboolean unk_db_set(const gchar* key, const gchar* value, gint rating)
 
 gboolean unk_db_delete(const gchar* key)
 {
-	sqlite3_stmt *stmt;
+	g_debug("unk_db_delete");
+    sqlite3_stmt *stmt;
 	gint ret;
 	
 	if (key == NULL )
 	{
-		g_print("error unk_db_delete: key == NULL");
+		g_error("error unk_db_delete: key == NULL");
 		return FALSE;
 	}
 	if (!strlen(key) )
 	{
-		g_print("error unk_db_delete: strlen(key) == 0");
+		g_error("error unk_db_delete: strlen(key) == 0");
 		return FALSE;
 	}
 	
@@ -566,7 +576,8 @@ gboolean unk_db_delete(const gchar* key)
 
 GList* unk_db_get_keys()
 {
-	GList* list = NULL;
+	g_debug("unk_db_get_keys");
+    GList* list = NULL;
 	gchar* value;
 	sqlite3_stmt *stmt;
 	gint ret;
@@ -589,7 +600,7 @@ GList* unk_db_get_keys()
 		const char *err = NULL;
 		err = sqlite3_errmsg (primary_dbc);
 		if (err)
-			g_print ("\nError-Message : %s\n\n",err);
+			g_error ("\nError message : %s\n\n",err);
 	}
          
 	sqlite3_finalize(stmt);
@@ -600,7 +611,8 @@ GList* unk_db_get_keys()
 GList* unk_db_get_all()
 {
 	
-	GList* list = NULL;
+	g_debug("unk_db_get_all");
+    GList* list = NULL;
 	sqlite3_stmt *stmt;
 	gint ret;
 	
@@ -629,13 +641,19 @@ GList* unk_db_get_all()
 		const char *err = NULL;
 		err = sqlite3_errmsg (primary_dbc);
 		if (err)
-			g_print ("\nError-Message : %s\n\n",err);
+			g_error("\nError message : %s\n\n",err);
 	}
          
 	sqlite3_finalize(stmt);
 	
 	return list;
 }
+
+GList* unk_db_get_all_db_names()
+{
+    return secondary_dbc_list;
+};
+
 static void dbc_list_destroyed(gpointer data) {
 	
 	gint ret = sqlite3_close_v2 ( ((DBInfo*)data)->dbc);
@@ -645,7 +663,8 @@ static void dbc_list_destroyed(gpointer data) {
 
 gint unk_db_cleanup(void)
 {
-	gint ret;
+	g_debug("unk_db_cleanup");
+    gint ret;
 	
 	if (primary_dbc)
 	{
@@ -657,8 +676,9 @@ gint unk_db_cleanup(void)
 	
 	if (!unk_db_lock_remove(primary_db_filename))
 	{
-		g_print("cant remove database lock '%s'. remove it manually.", primary_db_filename);
-	}
+		g_error("cant remove database lock '%s'. remove it manually.", primary_db_filename);
+        msgwin_status_add("cant remove database lock '%s'. remove it manually.", primary_db_filename);
+    }
 	g_free(primary_db_filename);
 	return ret;
 }

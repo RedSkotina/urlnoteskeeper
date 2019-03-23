@@ -65,13 +65,14 @@ gint get_indicator_id_by_rating(gint rating)
 			res = GEANY_INDICATOR_UNK_POSITIVE_DB;
 			break;
 		default:
-			g_print("unknown rating value %d", rating);
+			g_warning("unknown rating value %d", rating);
 	}
 	return res;
 }
 gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 {
-	gint wstart, wend;
+	g_debug("get_backward_word");
+    gint wstart, wend;
 	gchar* word;
 	
 	gint wordchars_len;
@@ -116,7 +117,8 @@ gchar* get_backward_word(GeanyDocument *doc, gint cur_pos)
 
 GList* search_marks(GeanyEditor *editor, const gchar *search_text)
 {
-	GList *list = NULL;
+	g_debug("search_marks");
+    GList *list = NULL;
 	gint start_pos, flags = 0;
 	struct Sci_TextToFind ttf;
 	
@@ -153,7 +155,8 @@ void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos, gin
 
 void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 {
-	GList* list_url = NULL, *iterator = NULL;
+    g_debug("set_url_marks");
+    GList* list_url = NULL, *iterator = NULL;
 	
 	struct Sci_TextRange tr;
 	tr.chrg.cpMin = range_start_pos;
@@ -177,7 +180,8 @@ void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos
 
 void set_db_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 {
-	GList *list_db = NULL, *list_db2 = NULL, *list_keys = NULL, *iterator = NULL, *it2 = NULL ;
+	g_debug("set_db_marks");
+    GList *list_db = NULL, *list_db2 = NULL, *list_keys = NULL, *iterator = NULL, *it2 = NULL ;
 	struct Sci_TextRange tr;
 	tr.chrg.cpMin = range_start_pos;
 	tr.chrg.cpMax = range_end_pos;
@@ -213,7 +217,8 @@ void set_db_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 
 void clear_all_db_marks(GeanyEditor *editor)
 {
-	gint len = sci_get_length(editor->sci);
+	g_debug("clear_all_db_marks");
+    gint len = sci_get_length(editor->sci);
 	scintilla_send_message(editor->sci, SCI_SETINDICATORCURRENT, GEANY_INDICATOR_UNK_POSITIVE_DB, 0);
 	scintilla_send_message(editor->sci, SCI_INDICATORCLEARRANGE, 0, len);
 	scintilla_send_message(editor->sci, SCI_SETINDICATORCURRENT, GEANY_INDICATOR_UNK_NEUTRAL_DB, 0);
@@ -228,7 +233,8 @@ void clear_all_db_marks(GeanyEditor *editor)
  */
 void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 {
-	/*set dwell interval*/
+	g_debug("on_document_open");
+    /*set dwell interval*/
 	scintilla_send_message(doc->editor->sci, SCI_SETMOUSEDWELLTIME, 500, 0);
 
 	/* set tab size for calltips */
@@ -237,18 +243,6 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_AUTO_DETECTED, INDIC_BOX);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_AUTO_DETECTED, 50);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_AUTO_DETECTED, 0x007f00);
-	
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_POSITIVE_DB, INDIC_STRAIGHTBOX);
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_POSITIVE_DB, 60);
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_POSITIVE_DB, 0x00FC00);	
-	
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEUTRAL_DB, INDIC_STRAIGHTBOX);
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEUTRAL_DB, 60);
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEUTRAL_DB, 0xFC0000);	
-	
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEGATIVE_DB, INDIC_STRAIGHTBOX);
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEGATIVE_DB, 60);
-	//~ scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEGATIVE_DB, 0x0000FC);	
 	
 	//~ g_print("%d", gdk_rgba_alpha_to_integer(unk_info->positive_rating_color));
 	//~ g_print("%h", gdk_rgba_rgb_to_integer(unk_info->positive_rating_color));
@@ -290,8 +284,6 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 	/* data == GeanyPlugin because the data member of PluginCallback was set to NULL
 	 * and this plugin has called geany_plugin_set_data() with the GeanyPlugin pointer as
 	 * data */
-	//GeanyPlugin *plugin = data;
-	//GeanyData *geany_data = plugin->geany_data;
 	gchar* word;
 	gchar prev_char;
 	gint cur_pos;
@@ -307,7 +299,8 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			/* This notification is sent very often, you should not do time-consuming tasks here */
 			break;
 		case SCN_CHARADDED:
-			if (nt->ch == ' ' || nt->ch == '\n') 
+			g_debug("unk_gui_editor_notify(SCN_CHARADDED)");
+            if (nt->ch == ' ' || nt->ch == '\n') 
 			{
 				cur_pos = scintilla_send_message(editor->sci, SCI_GETCURRENTPOS, 0, 0);
 				if (cur_pos > 0)
@@ -334,7 +327,8 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			}
 			break;
 		case SCN_INDICATORCLICK:
-			indicator_exist = FALSE;
+			g_debug("unk_gui_editor_notify(SCN_INDICATORCLICK)");
+            indicator_exist = FALSE;
 			indicator_id = 0;
 			indicator_bitmap = scintilla_send_message(editor->sci, SCI_INDICATORALLONFOR, nt->position, 0);
 			
@@ -369,13 +363,27 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				sidebar_set_url(tr.lpstrText);
 				
 				DBRow* row = unk_db_get_primary(tr.lpstrText, "");
-				
 				sidebar_set_note(row->note);
-				
 				sidebar_set_rating(row->rating);
 				
-				sidebar_activate();
-				sidebar_show(geany_plugin);			
+                sidebar_show(geany_plugin);			
+				
+                sidebar_hide_all_secondary_frames();
+                
+                GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none");
+				
+				GHashTableIter it;
+				gpointer key, value;
+				
+				g_hash_table_iter_init (&it, secondary_rows);
+				while (g_hash_table_iter_next (&it, &key, &value))
+				{
+                    sidebar_set_secondary_note((gchar*)key, ((DBRow*)value)->note);
+                    sidebar_set_secondary_rating((gchar*)key, ((DBRow*)value)->rating);
+                    side_show_secondary_frame((gchar*)key);
+				}
+                
+                sidebar_activate();
 				
 				g_free(tr.lpstrText);
 				g_free(row->note);
@@ -400,9 +408,12 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				
 				sidebar_set_rating(0);
 				
-				sidebar_activate();
 				sidebar_show(geany_plugin);			
+				sidebar_hide_all_secondary_frames();
+                
+                sidebar_activate();
 				
+                
 				g_free(tr.lpstrText);
 				g_free(note);
 				
@@ -411,7 +422,8 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 								
 			break;
 		case SCN_DWELLSTART:
-			indicator_exist = FALSE;
+			g_debug("unk_gui_editor_notify(SCN_DWELLSTART)");
+            indicator_exist = FALSE;
 			indicator_id = 0;
 			indicator_bitmap = scintilla_send_message(editor->sci, SCI_INDICATORALLONFOR, nt->position, 0);
 			
@@ -472,7 +484,8 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			}
 			break;
 		case SCN_DWELLEND:
-			if (scintilla_send_message (editor->sci, SCI_CALLTIPACTIVE, 0, 0))
+			g_debug("unk_gui_editor_notify(SCN_DWELLEND)");
+            if (scintilla_send_message (editor->sci, SCI_CALLTIPACTIVE, 0, 0))
 			{
 				scintilla_send_message (editor->sci, SCI_CALLTIPCANCEL, 0, 0);
 			}
@@ -496,6 +509,7 @@ void
 on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
                       G_GNUC_UNUSED gpointer user_data)
 {
+    g_debug("on_configure_response");
     if (response == GTK_RESPONSE_OK || response == GTK_RESPONSE_APPLY)
     {
         GKeyFile *config = g_key_file_new();
@@ -598,15 +612,10 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
     }
 }
 
-
-//~ void button_on_color_set (GtkColorButton *widget, GdkRGBA *color )
-//~ {
-		//~ gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(widget), color);
-//~ }
-
 GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data)
 {
-	GtkWidget *label_db_path, *entry_db_path, *vbox, *checkbox_enable_urls_detect_on_open_document, *checkbox_enable_db_detect_on_open_document;
+	g_debug("create_configure_widget");
+    GtkWidget *label_db_path, *entry_db_path, *vbox, *checkbox_enable_urls_detect_on_open_document, *checkbox_enable_db_detect_on_open_document;
 
 	GtkWidget *label_positive_rating_color, *label_neutral_rating_color, *label_negative_rating_color;
 	GtkColorButton *button_positive_rating_color, *button_neutral_rating_color, *button_negative_rating_color;
@@ -711,7 +720,8 @@ static void on_submenu_item_db_detect_activate(G_GNUC_UNUSED GtkMenuItem *menuit
 
 void menu_init(void)
 {
-	menu_widgets = g_malloc (sizeof (MenuWidgets));
+	g_debug("menu_init");
+    menu_widgets = g_malloc (sizeof (MenuWidgets));
 	
 	menu_widgets->main_menu = gtk_menu_new();
 	
@@ -747,5 +757,6 @@ void menu_init(void)
 
 void menu_cleanup(void)
 {
-	gtk_widget_destroy(main_menu_item);
+	g_debug("menu_cleanup");
+    gtk_widget_destroy(main_menu_item);
 }

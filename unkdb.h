@@ -34,6 +34,8 @@ GList* unk_db_get_keys();
 
 GList* unk_db_get_all();
 
+GList* unk_db_get_all_db_names();
+
 void row_destroyed(gpointer value);				  
 
 #endif
