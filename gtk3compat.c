@@ -179,6 +179,36 @@ gtk_color_button_get_rgba (GtkColorButton *chooser, GdkRGBA *color)
 }
 #endif
 
+#if !GTK_CHECK_VERSION(3,0,0)
+void
+gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, const GdkRGBA *color)
+{
+	GdkColor c;
+	guint16 alpha;
+	
+	gdk_rgba_to_color(rgba, &c, &alpha);
+
+	gtk_widget_modify_bg(widget,state, &c);
+}
+#endif
+
+#if !GTK_CHECK_VERSION(3,0,0)
+void
+gtk_widget_override_font (GtkWidget *widget, const PangoFontDescription *font_desc);
+{
+	gtk_widget_override_font(widget, font_desc);
+}
+#endif
+
+#if GTK_CHECK_VERSION(3,0,0)
+void
+gtk_widget_hide_all (GtkWidget *widget)
+{
+	gtk_widget_hide(widget);
+}
+#endif
+
+
 void
 gdk_color_to_rgba(const GdkColor *color, guint16 alpha, GdkRGBA *rgba)
 {

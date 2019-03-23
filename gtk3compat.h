@@ -31,7 +31,23 @@ G_GNUC_INTERNAL GtkWidget *
 gtk_color_button_new_with_rgba (const GdkRGBA *rgba);
 
 G_END_DECLS
+#endif
 
+#if ! GTK_CHECK_VERSION(3,0,0)
+G_BEGIN_DECLS
+
+G_GNUC_INTERNAL void
+gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, const GdkRGBA *color);
+
+G_GNUC_INTERNAL void
+gtk_widget_override_font (GtkWidget *widget, const PangoFontDescription *font_desc);
+
+G_END_DECLS
+#endif
+
+#if GTK_CHECK_VERSION(3,0,0)
+G_GNUC_INTERNAL void
+gtk_widget_hide_all (GtkWidget *widget);
 #endif
 
 void

@@ -148,9 +148,6 @@ GList* search_marks(GeanyEditor *editor, const gchar *search_text)
 void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos, gint rating) 
 {
 	editor_indicator_set_on_range(editor, get_indicator_id_by_rating( rating ) , range_start_pos, range_end_pos);
-	//scintilla_send_message(editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEUTRAL_DB, INDIC_STRAIGHTBOX);
-	//scintilla_send_message(editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEUTRAL_DB, 30);
-	//scintilla_send_message(editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_NEUTRAL_DB, 0x007f00);
 }
 
 void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
@@ -244,22 +241,13 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_AUTO_DETECTED, 50);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE, GEANY_INDICATOR_UNK_AUTO_DETECTED, 0x007f00);
 	
-	//~ g_print("%d", gdk_rgba_alpha_to_integer(unk_info->positive_rating_color));
-	//~ g_print("%h", gdk_rgba_rgb_to_integer(unk_info->positive_rating_color));
-	
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_POSITIVE_DB, INDIC_STRAIGHTBOX);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_POSITIVE_DB, gdk_rgba_alpha_to_integer(unk_info->positive_rating_color));
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_POSITIVE_DB, gdk_rgba_rgb_to_integer(unk_info->positive_rating_color));	
 	
-	//~ g_print("%d", gdk_rgba_alpha_to_integer(unk_info->neutral_rating_color));
-	//~ g_print("%h", gdk_rgba_rgb_to_integer(unk_info->neutral_rating_color));
-	
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEUTRAL_DB, INDIC_STRAIGHTBOX);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEUTRAL_DB, gdk_rgba_alpha_to_integer(unk_info->neutral_rating_color));
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETFORE,  GEANY_INDICATOR_UNK_NEUTRAL_DB, gdk_rgba_rgb_to_integer(unk_info->neutral_rating_color));	
-	
-	//~ g_print("%d", gdk_rgba_alpha_to_integer(unk_info->negative_rating_color));
-	//~ g_print("%h", gdk_rgba_rgb_to_integer(unk_info->negative_rating_color));
 	
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETSTYLE, GEANY_INDICATOR_UNK_NEGATIVE_DB, INDIC_STRAIGHTBOX);
 	scintilla_send_message(doc->editor->sci, SCI_INDICSETALPHA, GEANY_INDICATOR_UNK_NEGATIVE_DB, gdk_rgba_alpha_to_integer(unk_info->negative_rating_color));
@@ -348,7 +336,6 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				indicator_id = GEANY_INDICATOR_UNK_NEGATIVE_DB;
 			};
 					
-			//if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_DB, nt->position))
 			if (indicator_exist)
 			{
 				gint start = scintilla_send_message(editor->sci, SCI_INDICATORSTART, indicator_id, nt->position);
@@ -524,31 +511,16 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
 		
 		SETPTR(unk_info->db_path, g_strdup(gtk_entry_get_text(GTK_ENTRY(config_widgets->entry_db_path))));
 		
-		//~ GdkRGBA *positive_rating_color_object;
-		//~ g_object_get (G_OBJECT(config_widgets->button_positive_rating_color), "rgba", &positive_rating_color_object, NULL);
-		//~ gdk_rgba_copy_value( unk_info->positive_rating_color, (GdkRGBA*)(positive_rating_color_object));
-		//~ g_free (positive_rating_color_object);
-		
+		G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    
 		gtk_color_button_get_rgba( config_widgets->button_positive_rating_color, unk_info->positive_rating_color);
-		
-		//~ GdkRGBA *neutral_rating_color_object;
-		//~ g_object_get (G_OBJECT(config_widgets->button_neutral_rating_color), "rgba", &neutral_rating_color_object, NULL);
-		//~ gdk_rgba_copy_value( unk_info->neutral_rating_color, (GdkRGBA*)(neutral_rating_color_object));
-		//~ g_free (neutral_rating_color_object);
 		
 		gtk_color_button_get_rgba( config_widgets->button_neutral_rating_color, unk_info->neutral_rating_color);
 		
-		//~ GdkRGBA *negative_rating_color_object;
-		//~ g_object_get (G_OBJECT(config_widgets->button_negative_rating_color), "rgba", &negative_rating_color_object, NULL);
-		//~ gdk_rgba_copy_value( unk_info->negative_rating_color, (GdkRGBA*)(negative_rating_color_object));
-		//~ g_free (negative_rating_color_object);
-		
 		gtk_color_button_get_rgba( config_widgets->button_negative_rating_color, unk_info->negative_rating_color);
 		
-		//~ gdk_rgba_copy_value( unk_info->neutral_rating_color,  GTK_COLOR_BUTTON(config_widgets->button_neutral_rating_color)->rgba);
-		//~ gdk_rgba_copy_value( unk_info->negative_rating_color, GTK_COLOR_BUTTON(config_widgets->button_negative_rating_color)->rgba);
-		
-		
+		G_GNUC_END_IGNORE_DEPRECATIONS
+			
 		guint i;
 		foreach_document(i)
 		{
@@ -570,7 +542,7 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
 		}
 		
 		
-		/* write stuff to file */
+		/* write config to file */
         g_key_file_load_from_file(config, unk_info->config_file, G_KEY_FILE_NONE, NULL);
 
         g_key_file_set_boolean(config, "general", "enable_urls_detect_on_open_document",
@@ -601,7 +573,6 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
         }
         else
         {
-            /* write config to file */
             data = g_key_file_to_data(config, NULL, NULL);
             utils_write_file(unk_info->config_file, data);
             g_free(data);
@@ -630,8 +601,6 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 			gtk_entry_set_text(GTK_ENTRY(entry_db_path), unk_info->db_path);
 		config_widgets->entry_db_path = entry_db_path;
 		
-		//gtk_container_add(GTK_CONTAINER(vbox), label_db_path);
-		//gtk_container_add(GTK_CONTAINER(vbox), entry_db_path);
 		gtk_box_pack_start(GTK_BOX(vbox), label_db_path, FALSE, FALSE, 5);
 		gtk_box_pack_start(GTK_BOX(vbox), entry_db_path, FALSE, FALSE, 2);
 		
@@ -642,11 +611,12 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 		label_positive_rating_color = gtk_label_new(_("Positive rating"));
 		
 		button_positive_rating_color = (GtkColorButton*)gtk_color_button_new_with_rgba (unk_info->positive_rating_color);
+		G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 		gtk_color_button_set_use_alpha(button_positive_rating_color, TRUE); 
+		G_GNUC_END_IGNORE_DEPRECATIONS
+	
 		gtk_color_button_set_title (button_positive_rating_color, _("Positive rating"));
-		//g_signal_connect(dialog, "color-set", G_CALLBACK(button_on_color_set), unk_info->positive_rating_color);
-		//gtk_container_add(GTK_CONTAINER(positive_rating_color_box), label_positive_rating_color);
-		//gtk_container_add(GTK_CONTAINER(positive_rating_color_box), GTK_WIDGET(button_positive_rating_color));
+		
 		gtk_box_pack_start(GTK_BOX(positive_rating_color_box), label_positive_rating_color, FALSE, FALSE, 5);
 		gtk_box_pack_start(GTK_BOX(positive_rating_color_box), GTK_WIDGET(button_positive_rating_color), TRUE, TRUE, 5);
 		gtk_box_pack_start(GTK_BOX(vbox), positive_rating_color_box, FALSE, FALSE, 2);
@@ -656,11 +626,11 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 		neutral_rating_color_box = gtk_hbox_new(FALSE, 2);
 		label_neutral_rating_color = gtk_label_new(_("Neutral rating"));
 		button_neutral_rating_color = (GtkColorButton*)gtk_color_button_new_with_rgba (unk_info->neutral_rating_color);
+		G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 		gtk_color_button_set_use_alpha(button_neutral_rating_color, TRUE); 
+		G_GNUC_END_IGNORE_DEPRECATIONS
 		gtk_color_button_set_title (button_neutral_rating_color, _("Neutral rating"));
-		//g_signal_connect(dialog, "color-set", G_CALLBACK(button_on_color_set), unk_info->neutral_rating_color);
-		//gtk_container_add(GTK_CONTAINER(neutral_rating_color_box), label_neutral_rating_color);
-		//gtk_container_add(GTK_CONTAINER(neutral_rating_color_box), GTK_WIDGET(button_neutral_rating_color));
+		
 		gtk_box_pack_start(GTK_BOX(neutral_rating_color_box), label_neutral_rating_color, FALSE, FALSE, 5);
 		gtk_box_pack_start(GTK_BOX(neutral_rating_color_box), GTK_WIDGET(button_neutral_rating_color), TRUE, TRUE, 5);
 		gtk_box_pack_start(GTK_BOX(vbox), neutral_rating_color_box, FALSE, FALSE, 5);
@@ -670,11 +640,11 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 		negative_rating_color_box = gtk_hbox_new(FALSE, 2);
 		label_negative_rating_color = gtk_label_new(_("Negative rating"));
 		button_negative_rating_color = (GtkColorButton*)gtk_color_button_new_with_rgba (unk_info->negative_rating_color);
+		G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 		gtk_color_button_set_use_alpha(button_negative_rating_color, TRUE); 
+		G_GNUC_END_IGNORE_DEPRECATIONS
 		gtk_color_button_set_title (button_negative_rating_color, _("Negative rating"));
-		//g_signal_connect(dialog, "color-set", G_CALLBACK(button_on_color_set), unk_info->negative_rating_color);
-		//gtk_container_add(GTK_CONTAINER(negative_rating_color_box), label_negative_rating_color);
-		//gtk_container_add(GTK_CONTAINER(negative_rating_color_box), GTK_WIDGET(button_negative_rating_color));
+		
 		gtk_box_pack_start(GTK_BOX(negative_rating_color_box), label_negative_rating_color, FALSE, FALSE, 5);
 		gtk_box_pack_start(GTK_BOX(negative_rating_color_box), GTK_WIDGET(button_negative_rating_color), TRUE, TRUE, 5);
 		gtk_box_pack_start(GTK_BOX(vbox), negative_rating_color_box, FALSE, FALSE, 5);
@@ -726,7 +696,7 @@ void menu_init(void)
 	menu_widgets->main_menu = gtk_menu_new();
 	
 	main_menu_item = gtk_menu_item_new_with_mnemonic(_("_Url Notes Keeper"));
-	//gtk_widget_show(main_menu_item);
+	
 	gtk_container_add(GTK_CONTAINER(geany_data->main_widgets->tools_menu), main_menu_item);
 	
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(main_menu_item), menu_widgets->main_menu);

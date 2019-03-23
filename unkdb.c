@@ -117,35 +117,21 @@ static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_vers
 				if (ret != SQLITE_OK)
 				{
 					SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
-					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
 					return current_version; 
 				}
-				
-				//sqlite3_reset(stmt);
-				//HANDLE_ERROR(ret, "sqlite3_reset", primary_dbc);
 				
 				g_sprintf(sql, "PRAGMA user_version = %d;", current_version + 1);
 				ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
 				if (ret != SQLITE_OK)
 				{
 					SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc)
-					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
 					return current_version; 
 				}
-				
-				//~ ret = sqlite3_bind_int(stmt, 1, current_version + 1 );
-				//~ if (ret != SQLITE_OK)
-				//~ {
-					//~ SHOW_ERROR(ret, "sqlite3_bind_int", primary_dbc)
-					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-					//~ return current_version; 
-				//~ }
 				
 				ret = sqlite3_step (stmt);
 				if (ret != SQLITE_OK && ret != SQLITE_DONE)
 				{
 					SHOW_ERROR(ret, "sqlite3_step", primary_dbc)
-					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
 					return current_version; 
 				}
 	
@@ -153,7 +139,6 @@ static gint unk_update_db_schema(sqlite3 *dbc, gint start_version, gint end_vers
 				if (ret != SQLITE_OK)
 				{
 					SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
-					//~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
 					return current_version; 
 				}
 				sqlite3_reset(stmt);
@@ -276,57 +261,30 @@ gint unk_db_init(const gchar* filepath)
 					"URL TEXT PRIMARY KEY     NOT NULL," \
 					"NOTE           TEXT    NOT NULL," \
 					"RATING INTEGER NOT NULL DEFAULT 0);";
-
-		//ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
-		//SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 		
-		//ret = sqlite3_step (stmt);
-		//SHOW_ERROR(ret, "sqlite3_step", primary_dbc);
-
         ret = sqlite3_exec(primary_dbc, sql, NULL, NULL, NULL);
         if (ret != SQLITE_OK)
         {
             SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
-            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             return 1; 
         }
         
-		//sqlite3_reset(stmt);
-		//SHOW_ERROR(ret, "sqlite3_reset", primary_dbc);
-        gchar sql2[255];
+		gchar sql2[255];
         g_sprintf(sql2, "PRAGMA user_version = %d;", SQLITE_DB_USER_VERSION);
         ret = sqlite3_exec(primary_dbc, sql2, NULL, NULL, NULL);
         if (ret != SQLITE_OK)
         {
             SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
-            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             return 1; 
         }
        
-        // ret = sqlite3_prepare_v2 (primary_dbc, sql, -1, &stmt, NULL);
-        // if (ret != SQLITE_OK)
-        // {
-            // SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc)
-            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-            // return 1; 
-        // }
-		
-		// if (ret != SQLITE_OK && ret != SQLITE_DONE)
-        // {
-            // SHOW_ERROR(ret, "sqlite3_step", primary_dbc)
-            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-            // return 1; 
-        // }
-	
         ret = sqlite3_exec(primary_dbc, "COMMIT TRANSACTION;", NULL, NULL, NULL);
         if (ret != SQLITE_OK)
         {
             SHOW_ERROR(ret, "sqlite3_exec", primary_dbc)
-            //~ ret = sqlite3_exec(primary_dbc, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             return 1; 
         }
-        //sqlite3_finalize(stmt);
-	}
+    }
 	else
 	{
 		if (user_version > 0 && user_version < SQLITE_DB_USER_VERSION)
@@ -411,7 +369,7 @@ DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
 		return row;
     }
     
-    //g_print("%s", sqlite3_expanded_sql(stmt));
+    //g_debug("%s", sqlite3_expanded_sql(stmt));
     
     ret = sqlite3_step(stmt);		
     if ( ret == SQLITE_ROW )
@@ -487,7 +445,12 @@ GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
         }
         else if (ret == SQLITE_DONE)
         {
-            row->note = g_strdup(default_value);
+			//not found
+            //row->note = g_strdup(default_value);
+            g_free(row->url);
+            g_free(row);
+            sqlite3_reset(stmt);
+            continue;
         }
         else
         {

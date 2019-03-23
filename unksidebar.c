@@ -10,6 +10,8 @@
 
 //static gchar* unk_sidebar_group_name = "urlnotes";	
 
+static PangoFontDescription *thight_font_desc = NULL;
+
 typedef struct SIDEBAR
 {
     GtkWidget *unk_view_vbox;
@@ -96,32 +98,29 @@ void sidebar_set_note(gpointer text)
 
 void sidebar_set_rating(gint rating)
 {
-    GdkColor color;
-    guint16 alpha;
-    
-	switch (rating) {
+	G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    switch (rating) 
+    {
 		case -1:
 			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio1), TRUE);
 			
-            gdk_rgba_to_color(unk_info->negative_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(sidebar.rating_eventbox,GTK_STATE_NORMAL,&color);
-            break;
+            gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->negative_rating_color);
+			break;
 		case 0:
 			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio2), TRUE);
    			
-            gdk_rgba_to_color(unk_info->neutral_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(sidebar.rating_eventbox,GTK_STATE_NORMAL,&color);
-            break;
+            gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->neutral_rating_color);
+			break;
 		case 1:
 			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio3), TRUE);
 			
-            gdk_rgba_to_color(unk_info->positive_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(sidebar.rating_eventbox,GTK_STATE_NORMAL,&color);
-            break;
+            gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->positive_rating_color);
+			break;
 		default:
 			g_warning("wrong rating %d", rating);
 			
 	}
+	G_GNUC_END_IGNORE_DEPRECATIONS
 }
 
 void sidebar_set_secondary_note(gchar* frame_name, gpointer text)
@@ -145,26 +144,23 @@ void sidebar_set_secondary_rating(gchar* frame_name, gint rating)
         g_warning("cant find secondary frame %s", frame_name);
         return;
     }
-    
-    GdkColor color;
-    guint16 alpha;
             
-    switch (rating) {
+    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    switch (rating) 
+    {
 		case -1:
-			gdk_rgba_to_color(unk_info->negative_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(text_entry->rating_eventbox,GTK_STATE_NORMAL,&color);
-            break;
+			gtk_widget_override_background_color(text_entry->rating_eventbox, GTK_STATE_NORMAL, unk_info->negative_rating_color);
+			break;
 		case 0:
-			gdk_rgba_to_color(unk_info->neutral_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(text_entry->rating_eventbox,GTK_STATE_NORMAL,&color);
-   			break;
+			gtk_widget_override_background_color(text_entry->rating_eventbox, GTK_STATE_NORMAL, unk_info->neutral_rating_color);
+			break;
 		case 1:
-			gdk_rgba_to_color(unk_info->positive_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(text_entry->rating_eventbox,GTK_STATE_NORMAL,&color);
+			gtk_widget_override_background_color(text_entry->rating_eventbox, GTK_STATE_NORMAL, unk_info->positive_rating_color);
 			break;
 		default:
 			g_warning("wrong rating %d", rating);
 	}
+	G_GNUC_END_IGNORE_DEPRECATIONS
 };
 
 void sidebar_show(GeanyPlugin* geany_plugin)
@@ -214,25 +210,22 @@ static void radio_button_on_toggle (GtkToggleButton *source, gpointer user_data)
 	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio3)))
 		rating = 1;
 
-    GdkColor color;
-    guint16 alpha;
-    
-	switch (rating) {
+    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    switch (rating) 
+    {
 		case -1:
-			gdk_rgba_to_color(unk_info->negative_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(sidebar.rating_eventbox,GTK_STATE_NORMAL,&color);
-            break;
+			gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->negative_rating_color);
+			break;
 		case 0:
-			gdk_rgba_to_color(unk_info->neutral_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(sidebar.rating_eventbox,GTK_STATE_NORMAL,&color);
-            break;
+			gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->neutral_rating_color);
+			break;
 		case 1:
-			gdk_rgba_to_color(unk_info->positive_rating_color, &color, &alpha);
-            gtk_widget_modify_bg(sidebar.rating_eventbox,GTK_STATE_NORMAL,&color);
-            break;
+			gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->positive_rating_color);
+			break;
 		default:
 			g_warning("wrong rating %d", rating);
 	}
+	G_GNUC_END_IGNORE_DEPRECATIONS
 	
     if (gtk_toggle_button_get_active (source)) {
 		
@@ -282,6 +275,10 @@ GtkWidget* create_secondary_frame(gchar* name)
     
     GtkWidget *rating_label = gtk_label_new ("");
 	gtk_widget_set_size_request(rating_label, -1, 5);
+	
+	G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    gtk_widget_override_font(rating_label, thight_font_desc);
+	G_GNUC_END_IGNORE_DEPRECATIONS
 	
     gtk_container_add(GTK_CONTAINER(rating_eventbox),rating_label);
     gtk_box_pack_start(GTK_BOX(vbox), rating_eventbox, FALSE, FALSE, 1);
@@ -334,6 +331,8 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 {
 	g_debug("sidebar_init");
     
+    thight_font_desc = pango_font_description_from_string ("Serif 1");
+
     sec_entries_ht = g_hash_table_new_full (g_str_hash, g_str_equal, text_hashtable_key_destroyed, text_destroyed);
     
     GtkWidget *scrollwin;
@@ -363,6 +362,11 @@ void sidebar_init(GeanyPlugin* geany_plugin)
     gtk_event_box_set_above_child(GTK_EVENT_BOX(sidebar.rating_eventbox), FALSE); 
     
     GtkWidget *rating_label = gtk_label_new ("");
+	
+	G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    gtk_widget_override_font(rating_label, thight_font_desc);
+	G_GNUC_END_IGNORE_DEPRECATIONS
+		
 	gtk_widget_set_size_request(rating_label, -1, 5);
 	
     gtk_container_add(GTK_CONTAINER(sidebar.rating_eventbox),rating_label);
