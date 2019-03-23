@@ -126,9 +126,10 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 	geany_plugin_set_data(plugin, plugin, NULL);
 	
 	unk_db_init(unk_info->db_path);
-	sidebar_init(plugin);
 	
-	return TRUE;
+    sidebar_init(plugin);
+	
+    return TRUE;
 }
 
 static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data)

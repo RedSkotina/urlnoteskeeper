@@ -332,7 +332,8 @@ void sidebar_init(GeanyPlugin* geany_plugin)
 	g_debug("sidebar_init");
     
     thight_font_desc = pango_font_description_from_string ("Serif 1");
-
+    //pango_font_description_set_size (thight_font_desc, 1);
+    
     sec_entries_ht = g_hash_table_new_full (g_str_hash, g_str_equal, text_hashtable_key_destroyed, text_destroyed);
     
     GtkWidget *scrollwin;
@@ -355,7 +356,7 @@ void sidebar_init(GeanyPlugin* geany_plugin)
     gtk_box_pack_start(GTK_BOX(sidebar.unk_view_vbox), url_frame, FALSE, FALSE, 0);
 
     sidebar.vbox = gtk_vbox_new(FALSE, 0);
-
+	
     /**** color label ****/
 	
     sidebar.rating_eventbox = gtk_event_box_new(); 
@@ -373,8 +374,6 @@ void sidebar_init(GeanyPlugin* geany_plugin)
     gtk_box_pack_start(GTK_BOX(sidebar.vbox), sidebar.rating_eventbox, FALSE, FALSE, 1);
     
 	/**** radio buttons ****/
-	//GtkWidget *radio1, *radio2, *radio3, *rating_box;
-	 
 	sidebar.rating_box = gtk_hbox_new (GTK_ORIENTATION_HORIZONTAL, 3);
 	gtk_box_set_homogeneous (GTK_BOX (sidebar.rating_box), TRUE);
 
@@ -422,7 +421,7 @@ void sidebar_init(GeanyPlugin* geany_plugin)
     gtk_container_add(GTK_CONTAINER(sidebar.frame), sidebar.vbox);
     
     gtk_box_pack_start(GTK_BOX(sidebar.unk_view_vbox), sidebar.frame, TRUE, TRUE, 0);
-
+    
     GList* secondary_dbc_list = unk_db_get_all_db_names();
     for (GList* it = secondary_dbc_list; it; it = it->next) 
 	{

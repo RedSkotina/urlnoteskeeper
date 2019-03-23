@@ -181,7 +181,7 @@ gtk_color_button_get_rgba (GtkColorButton *chooser, GdkRGBA *color)
 
 #if !GTK_CHECK_VERSION(3,0,0)
 void
-gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, const GdkRGBA *color)
+gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, const GdkRGBA *rgba)
 {
 	GdkColor c;
 	guint16 alpha;
@@ -194,9 +194,9 @@ gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, co
 
 #if !GTK_CHECK_VERSION(3,0,0)
 void
-gtk_widget_override_font (GtkWidget *widget, const PangoFontDescription *font_desc);
+gtk_widget_override_font (GtkWidget *widget, PangoFontDescription *font_desc)
 {
-	gtk_widget_override_font(widget, font_desc);
+	gtk_widget_modify_font(widget, font_desc);
 }
 #endif
 

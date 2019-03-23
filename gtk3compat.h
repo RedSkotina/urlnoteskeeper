@@ -11,6 +11,24 @@ typedef struct {
 	gdouble alpha;
 } GdkRGBA;
 
+typedef enum
+{
+  GTK_STATE_FLAG_NORMAL       = 0,
+  GTK_STATE_FLAG_ACTIVE       = 1 << 0,
+  GTK_STATE_FLAG_PRELIGHT     = 1 << 1,
+  GTK_STATE_FLAG_SELECTED     = 1 << 2,
+  GTK_STATE_FLAG_INSENSITIVE  = 1 << 3,
+  GTK_STATE_FLAG_INCONSISTENT = 1 << 4,
+  GTK_STATE_FLAG_FOCUSED      = 1 << 5,
+  GTK_STATE_FLAG_BACKDROP     = 1 << 6,
+  GTK_STATE_FLAG_DIR_LTR      = 1 << 7,
+  GTK_STATE_FLAG_DIR_RTL      = 1 << 8,
+  GTK_STATE_FLAG_LINK         = 1 << 9,
+  GTK_STATE_FLAG_VISITED      = 1 << 10,
+  GTK_STATE_FLAG_CHECKED      = 1 << 11,
+  GTK_STATE_FLAG_DROP_ACTIVE  = 1 << 12
+} GtkStateFlags;
+
 #endif
 
 #if ! GTK_CHECK_VERSION(3,4,0)
@@ -37,10 +55,10 @@ G_END_DECLS
 G_BEGIN_DECLS
 
 G_GNUC_INTERNAL void
-gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, const GdkRGBA *color);
+gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, const GdkRGBA *rgba);
 
 G_GNUC_INTERNAL void
-gtk_widget_override_font (GtkWidget *widget, const PangoFontDescription *font_desc);
+gtk_widget_override_font (GtkWidget *widget, PangoFontDescription *font_desc);
 
 G_END_DECLS
 #endif
