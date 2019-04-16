@@ -34,8 +34,6 @@ typedef struct TextEntry
     GtkWidget *frame;
 }TextEntry;
 
-static GHashTable*  sec_entries_ht = NULL;
-
 gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event, G_GNUC_UNUSED gpointer user_data)
 {
     g_debug("sidebar_unk_text_view_on_focus_out");
@@ -123,46 +121,6 @@ void sidebar_set_rating(gint rating)
 	G_GNUC_END_IGNORE_DEPRECATIONS
 }
 
-void sidebar_set_secondary_note(gchar* frame_name, gpointer text)
-{
-    TextEntry* text_entry = (TextEntry*)g_hash_table_lookup(sec_entries_ht, frame_name);
-    if (!text_entry)
-    {
-        g_warning("cant find secondary frame %s", frame_name);
-        return;
-    }
-    GtkTextBuffer* buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (text_entry->text_view));
-    gtk_text_buffer_set_text(buffer, text, strlen(text));
-     
-};
-
-void sidebar_set_secondary_rating(gchar* frame_name, gint rating)
-{
-    TextEntry* text_entry = (TextEntry*)g_hash_table_lookup(sec_entries_ht, frame_name);
-    if (!text_entry)
-    {
-        g_warning("cant find secondary frame %s", frame_name);
-        return;
-    }
-            
-    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-    switch (rating) 
-    {
-		case -1:
-			gtk_widget_override_background_color(text_entry->rating_eventbox, GTK_STATE_NORMAL, unk_info->negative_rating_color);
-			break;
-		case 0:
-			gtk_widget_override_background_color(text_entry->rating_eventbox, GTK_STATE_NORMAL, unk_info->neutral_rating_color);
-			break;
-		case 1:
-			gtk_widget_override_background_color(text_entry->rating_eventbox, GTK_STATE_NORMAL, unk_info->positive_rating_color);
-			break;
-		default:
-			g_warning("wrong rating %d", rating);
-	}
-	G_GNUC_END_IGNORE_DEPRECATIONS
-};
-
 void sidebar_show(GeanyPlugin* geany_plugin)
 {
 	gtk_widget_show_all(sidebar.unk_view_vbox);
@@ -175,29 +133,6 @@ void sidebar_show(GeanyPlugin* geany_plugin)
 		g_error("error: cant find url notes page in sidebar notebook");
     	msgwin_status_add_string("error: cant find 'url notes' page in sidebar notebook");
     }
-}
-
-void sidebar_hide_all_secondary_frames()
-{
-    GHashTableIter it;
-    gpointer key, value;
-				
-    g_hash_table_iter_init (&it, sec_entries_ht);
-    while (g_hash_table_iter_next (&it, &key, &value))
-    {
-        gtk_widget_hide_all(((TextEntry*)value)->frame);
-    }
-}
-
-void side_show_secondary_frame(gchar* frame_name)
-{
-    TextEntry* text_entry = (TextEntry*)g_hash_table_lookup(sec_entries_ht, frame_name);
-    if (!text_entry)
-    {
-        g_warning("cant find secondary frame %s", frame_name);
-        return;
-    }
-    gtk_widget_show_all(text_entry->frame);
 }
 
 static void radio_button_on_toggle (GtkToggleButton *source, gpointer user_data) {
@@ -261,81 +196,10 @@ static void radio_button_on_toggle (GtkToggleButton *source, gpointer user_data)
 	}
 }
 
-GtkWidget* create_secondary_frame(gchar* name)
-{
-    g_debug("create_secondary_frame");
-    GtkWidget *scrollwin;
-	GtkTextBuffer *buffer;
-    GtkWidget *frame;
-	
-    GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-    
-    GtkWidget* rating_eventbox = gtk_event_box_new(); 
-    gtk_event_box_set_above_child(GTK_EVENT_BOX(rating_eventbox), FALSE); 
-    
-    GtkWidget *rating_label = gtk_label_new ("");
-	gtk_widget_set_size_request(rating_label, -1, 5);
-	
-	G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-    gtk_widget_override_font(rating_label, thight_font_desc);
-	G_GNUC_END_IGNORE_DEPRECATIONS
-	
-    gtk_container_add(GTK_CONTAINER(rating_eventbox),rating_label);
-    gtk_box_pack_start(GTK_BOX(vbox), rating_eventbox, FALSE, FALSE, 1);
-    
-    GtkWidget *text_view = gtk_text_view_new ();
-	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text_view),GTK_WRAP_WORD);
-	
-	buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (text_view));
-	gtk_text_buffer_set_text (buffer, "", -1);
-	
-    scrollwin = gtk_scrolled_window_new(NULL, NULL);
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
-					   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	gtk_container_add(GTK_CONTAINER(scrollwin), text_view);
-	
-    gtk_box_pack_start(GTK_BOX(vbox), scrollwin, TRUE, TRUE, 0);
-
-    frame = gtk_frame_new(name);
-    
-    gtk_container_add(GTK_CONTAINER(frame), vbox);
-    gtk_container_set_border_width(GTK_CONTAINER(frame), 2);
-    
-    TextEntry* text_entry = g_malloc (sizeof (TextEntry));
-	text_entry->main_box = vbox;
-    text_entry->rating_label = rating_label;
-    text_entry->text_view = text_view;
-    text_entry->rating_eventbox = rating_eventbox;
-    text_entry->frame = frame;
-    
-    g_hash_table_insert(sec_entries_ht, g_strdup(name), text_entry);
-        
-    return frame;
-}
-
-void remove_secondary_frame(gchar* name)
-{
-    g_hash_table_remove(sec_entries_ht, name);
-    
-}
- 
-static void text_hashtable_key_destroyed(gpointer key) {
-	g_free((gchar*)key);
-}
-
-static void text_destroyed(gpointer value) {
-	g_free((DBRow*)value);
-}
-
 void sidebar_init(GeanyPlugin* geany_plugin)
 {
 	g_debug("sidebar_init");
-    
-    thight_font_desc = pango_font_description_from_string ("Serif 1");
-    //pango_font_description_set_size (thight_font_desc, 1);
-    
-    sec_entries_ht = g_hash_table_new_full (g_str_hash, g_str_equal, text_hashtable_key_destroyed, text_destroyed);
-    
+        
     GtkWidget *scrollwin;
 	GtkTextBuffer *buffer;
 
@@ -421,14 +285,6 @@ void sidebar_init(GeanyPlugin* geany_plugin)
     gtk_container_add(GTK_CONTAINER(sidebar.frame), sidebar.vbox);
     
     gtk_box_pack_start(GTK_BOX(sidebar.unk_view_vbox), sidebar.frame, TRUE, TRUE, 0);
-    
-    GList* secondary_dbc_list = unk_db_get_all_db_names();
-    for (GList* it = secondary_dbc_list; it; it = it->next) 
-	{
-        GtkWidget* secondary_frame = create_secondary_frame(((DBInfo*)(it->data))->name);
-        gtk_box_pack_start(GTK_BOX(sidebar.unk_view_vbox), secondary_frame, FALSE, FALSE, 0);
-        
-    }
     
 	gtk_widget_show_all(sidebar.unk_view_vbox);
 	gtk_notebook_append_page(

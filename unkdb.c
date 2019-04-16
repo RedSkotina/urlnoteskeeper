@@ -617,7 +617,7 @@ GList* unk_db_get_all()
         msgwin_status_add_string(_("error: primary database is not opened"));
         return list;
     }
-	gchar* sql = "SELECT url,rating FROM urlnotes;";
+	gchar* sql = "SELECT url,note,rating FROM urlnotes;";
 	ret = sqlite3_prepare_v2(primary_dbc, sql, strlen(sql)+1, &stmt, 0);    
     if (ret != SQLITE_OK) {
 		SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
@@ -632,7 +632,8 @@ GList* unk_db_get_all()
 		row->rating = 0;
     
 		row->url = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
-		row->rating = (gint)sqlite3_column_int(stmt,1);
+		row->note = g_strdup((const gchar*)sqlite3_column_text(stmt,1));
+		row->rating = (gint)sqlite3_column_int(stmt,2);
 		list = g_list_append(list, row);
 	}
     

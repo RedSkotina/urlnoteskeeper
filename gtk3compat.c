@@ -200,6 +200,15 @@ gtk_widget_override_font (GtkWidget *widget, PangoFontDescription *font_desc)
 }
 #endif
 
+#if !GTK_CHECK_VERSION(3,0,0)
+void
+gtk_list_box_row_new(void)
+{
+    
+}
+#endif
+
+
 #if GTK_CHECK_VERSION(3,0,0)
 void
 gtk_widget_hide_all (GtkWidget *widget)
@@ -227,3 +236,33 @@ gdk_rgba_to_color(const GdkRGBA *rgba, GdkColor *color, guint16 *alpha)
 	if (alpha != NULL)
 		*alpha = 65535 * rgba->alpha;
 }
+
+gchar* gdk_rgba_to_hex_string(const GdkRGBA *rgba, gchar* spec)
+{
+    sprintf(spec, "#%02X%02X%02X", (int)(rgba->red*255), (int)(rgba->green*255), (int)(rgba->blue*255));
+    g_print(spec);
+    return spec;
+}
+
+GdkRGBA *
+gdk_rgba_contrast(const GdkRGBA *rgba, GdkRGBA *inv_rgba)
+{
+	gdouble y = (299 * 255 * rgba->red + 587 * 255 * rgba->green + 114 * 255 * rgba->blue) / 1000;
+    g_print("%f %f %f %f", rgba->red, rgba->green, rgba->blue, y);
+    if (y >= 128)
+    {   //white
+        inv_rgba->red = 0;
+        inv_rgba->green = 0;
+        inv_rgba->blue = 0;
+        inv_rgba->alpha = 1;
+    }
+    else
+    {   //black
+        inv_rgba->red = 1;
+        inv_rgba->green = 1;
+        inv_rgba->blue = 1;
+        inv_rgba->alpha = 1;
+    }
+    return inv_rgba;
+}
+

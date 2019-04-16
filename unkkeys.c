@@ -3,6 +3,7 @@
 #include "unkkeys.h"
 #include "unkdb.h"
 #include "unksidebar.h"
+#include "unkfeedbar.h"
 #include "unkgui.h"
 
 extern GeanyPlugin		*geany_plugin;
@@ -95,8 +96,12 @@ gboolean keys_callback(guint key_id)
 				
                         
 						sidebar_show(geany_plugin);			
-                        sidebar_hide_all_secondary_frames();
+                        //sidebar_hide_all_secondary_frames();
+                        feedbar_reset();
+                        feedbar_show(geany_plugin);			
+				
                         sidebar_activate();
+						feedbar_activate();
 						
 					}
 					g_free(row->note);
@@ -158,8 +163,10 @@ gboolean keys_callback(guint key_id)
 				
 							sidebar_deactivate();
 							
-                            sidebar_hide_all_secondary_frames();
-                            
+                            //sidebar_hide_all_secondary_frames();
+                            feedbar_reset();
+                            feedbar_deactivate();
+							
 							clear_all_db_marks(doc->editor);
 			
 							gint doc_length = sci_get_length(doc->editor->sci);

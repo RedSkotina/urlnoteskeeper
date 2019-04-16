@@ -60,6 +60,9 @@ gtk_widget_override_background_color (GtkWidget *widget, GtkStateFlags state, co
 G_GNUC_INTERNAL void
 gtk_widget_override_font (GtkWidget *widget, PangoFontDescription *font_desc);
 
+G_GNUC_INTERNAL void
+gtk_list_box_row_new(void);
+
 G_END_DECLS
 #endif
 
@@ -74,4 +77,10 @@ gdk_color_to_rgba(const GdkColor *color, guint16 alpha, GdkRGBA *rgba);
 void
 gdk_rgba_to_color(const GdkRGBA *rgba, GdkColor *color, guint16 *alpha);
 
+GdkRGBA *
+gdk_rgba_contrast(const GdkRGBA *rgba, GdkRGBA *inv_rgba);
+
+gchar* gdk_rgba_to_hex_string(const GdkRGBA *rgba, gchar* spec);
+
 #endif
+

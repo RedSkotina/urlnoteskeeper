@@ -24,6 +24,8 @@ typedef struct ConfigWidgets{
 
 extern ConfigWidgets* config_widgets;	
 
+GList* search_marks(GeanyEditor *editor, const gchar *search_text);
+
 void set_mark(GeanyEditor *editor, gint range_start_pos, gint range_end_pos, gint rating) ;
 
 void set_url_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos);

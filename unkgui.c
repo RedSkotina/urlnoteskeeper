@@ -8,6 +8,7 @@
 #include "unkmatcher.h"
 #include "unkplugin.h"
 #include "unksidebar.h"
+#include "unkfeedbar.h"
 #include "unkdb.h"
 #include <math.h>
 
@@ -354,28 +355,20 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				sidebar_set_rating(row->rating);
 				
                 sidebar_show(geany_plugin);			
+				feedbar_show(geany_plugin);			
 				
-                sidebar_hide_all_secondary_frames();
-                
                 GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none");
 				
-				GHashTableIter it;
-				gpointer key, value;
-				
-				g_hash_table_iter_init (&it, secondary_rows);
-				while (g_hash_table_iter_next (&it, &key, &value))
-				{
-                    sidebar_set_secondary_note((gchar*)key, ((DBRow*)value)->note);
-                    sidebar_set_secondary_rating((gchar*)key, ((DBRow*)value)->rating);
-                    side_show_secondary_frame((gchar*)key);
-				}
+                feedbar_set_notes(secondary_rows);
                 
                 sidebar_activate();
+				feedbar_activate();
 				
+                g_hash_table_destroy (secondary_rows);
 				g_free(tr.lpstrText);
 				g_free(row->note);
 				g_free(row);
-				
+                
 			}
 			else if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_AUTO_DETECTED, nt->position))
 			{
@@ -396,9 +389,12 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				sidebar_set_rating(0);
 				
 				sidebar_show(geany_plugin);			
-				sidebar_hide_all_secondary_frames();
-                
+				
+                feedbar_reset();
+                feedbar_show(geany_plugin);			
+				
                 sidebar_activate();
+				feedbar_activate();
 				
                 
 				g_free(tr.lpstrText);
@@ -490,6 +486,8 @@ item_activate(GtkMenuItem *menuitem, gpointer gdata)
 	GeanyPlugin *plugin = gdata;
 
 	sidebar_show(plugin);
+    feedbar_show(plugin);			
+				
 }
 
 void

@@ -1,5 +1,5 @@
 project('urlnoteskeeper', 'c')
-src = ['unkplugin.c', 'unkgui.c', 'unksidebar.c', 'unkmatcher.c', 'unkdb.c', 'unkkeys.c', 'gtk3compat.c']
+src = ['unkplugin.c', 'unkgui.c', 'unksidebar.c', 'unkfeedbar.c', 'unksearchbar.c', 'unkmatcher.c', 'unkdb.c', 'unkkeys.c', 'gtk3compat.c']
 
 cc = meson.get_compiler('c')
 libm = cc.find_library('m', required: true)

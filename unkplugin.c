@@ -24,6 +24,8 @@
 #include "unkplugin.h"
 #include "unkgui.h"
 #include "unksidebar.h"
+#include "unkfeedbar.h"
+#include "unksearchbar.h"
 #include "unkdb.h"
 #include "unkkeys.h"
 
@@ -128,6 +130,8 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 	unk_db_init(unk_info->db_path);
 	
     sidebar_init(plugin);
+	feedbar_init(plugin);
+	searchbar_init(plugin);
 	
     return TRUE;
 }
