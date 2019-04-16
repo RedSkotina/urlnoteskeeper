@@ -240,7 +240,7 @@ gdk_rgba_to_color(const GdkRGBA *rgba, GdkColor *color, guint16 *alpha)
 gchar* gdk_rgba_to_hex_string(const GdkRGBA *rgba, gchar* spec)
 {
     sprintf(spec, "#%02X%02X%02X", (int)(rgba->red*255), (int)(rgba->green*255), (int)(rgba->blue*255));
-    g_print(spec);
+    //g_print(spec);
     return spec;
 }
 
@@ -248,7 +248,7 @@ GdkRGBA *
 gdk_rgba_contrast(const GdkRGBA *rgba, GdkRGBA *inv_rgba)
 {
 	gdouble y = (299 * 255 * rgba->red + 587 * 255 * rgba->green + 114 * 255 * rgba->blue) / 1000;
-    g_print("%f %f %f %f", rgba->red, rgba->green, rgba->blue, y);
+    //g_print("%f %f %f %f", rgba->red, rgba->green, rgba->blue, y);
     if (y >= 128)
     {   //white
         inv_rgba->red = 0;
