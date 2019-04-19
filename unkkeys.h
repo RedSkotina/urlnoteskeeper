@@ -9,7 +9,9 @@ enum KEYS
 	KEY_ADD,
 	KEY_DELETE,
 	KEY_DETECT_URLS,
-	KEY_DETECT_DB
+	KEY_DETECT_DB,
+    KEY_SHOW_SEARCHBAR,
+    KEY_SHOW_FEEDBAR
 };
 
 gboolean keys_init(void);

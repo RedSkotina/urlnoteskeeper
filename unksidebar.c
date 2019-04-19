@@ -130,7 +130,7 @@ void sidebar_show(GeanyPlugin* geany_plugin)
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(geany_plugin->geany_data->main_widgets->sidebar_notebook), page_num);
 	else 
     {   
-		g_error("error: cant find url notes page in sidebar notebook");
+		g_warning("error: cant find url notes page in sidebar notebook");
     	msgwin_status_add_string("error: cant find 'url notes' page in sidebar notebook");
     }
 }

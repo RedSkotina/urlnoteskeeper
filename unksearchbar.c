@@ -1,5 +1,5 @@
 #include <geanyplugin.h>
-
+#include <gdk/gdkkeysyms.h>
 #include <ctype.h>
 #include <string.h>
 #include "gtk3compat.h"
@@ -86,6 +86,7 @@ gint searchbar_get_mode()
         mode = SEARCH_FULL_BASE;
     return mode;
 }
+
 gboolean row_visible(GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data)
 {
     gboolean is_visible = FALSE;
@@ -159,6 +160,19 @@ static void pattern_entry_changed(GtkWidget *pattern_entry, gpointer user_data)
     gtk_tree_model_filter_refilter (searchbar.filtered);
 }
  
+static void pattern_entry_activate(GtkWidget *pattern_entry, gpointer user_data)
+{
+    gtk_widget_grab_focus(GTK_WIDGET(searchbar.results_view));
+}
+
+gboolean tree_on_keypress (GtkWidget *widget, GdkEventKey *event, gpointer data) {
+    if (event->keyval == GDK_KEY_Escape){
+        gtk_widget_grab_focus(GTK_WIDGET(searchbar.pattern_entry));
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static void toggled_cb (GtkToggleButton *toggle_button, gpointer user_data)
 {
   // if (gtk_toggle_button_get_active (toggle_button))
@@ -275,6 +289,7 @@ void searchbar_init(GeanyPlugin* geany_plugin)
     
     searchbar.pattern_entry = gtk_entry_new();
     g_signal_connect (searchbar.pattern_entry, "changed", G_CALLBACK (pattern_entry_changed), NULL);
+    g_signal_connect (searchbar.pattern_entry, "activate", G_CALLBACK (pattern_entry_activate), NULL);
     
     gtk_box_pack_start(GTK_BOX(hbox), searchbar.pattern_entry, TRUE, TRUE, 1);
     
@@ -303,7 +318,7 @@ void searchbar_init(GeanyPlugin* geany_plugin)
     searchbar.sorted = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (searchbar.filtered)));
     
     searchbar.results_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL(searchbar.sorted)));
-    
+    g_signal_connect (G_OBJECT (searchbar.results_view), "key_press_event", G_CALLBACK (tree_on_keypress), NULL);
     g_signal_connect (searchbar.results_view, "row-activated", G_CALLBACK (on_row_activated), searchbar.store);
                       
     GtkCellRenderer *renderer = gtk_cell_renderer_text_new ();
@@ -341,6 +356,21 @@ void searchbar_init(GeanyPlugin* geany_plugin)
 		searchbar.main_box,
 		gtk_label_new(_("Searchbar")));
 
+}
+
+void searchbar_show(GeanyPlugin* geany_plugin)
+{
+	gtk_widget_show_all(searchbar.main_box);
+	
+	gint page_num = gtk_notebook_page_num(GTK_NOTEBOOK(geany_plugin->geany_data->main_widgets->message_window_notebook), searchbar.main_box);
+	if (page_num >= 0) 
+		gtk_notebook_set_current_page(GTK_NOTEBOOK(geany_plugin->geany_data->main_widgets->message_window_notebook), page_num);
+	else 
+    {   
+		g_warning("error: cant find url notes page in message notebook");
+    	msgwin_status_add_string("error: cant find 'searchbar' page in message notebook");
+    }
+    gtk_widget_grab_focus(GTK_WIDGET(searchbar.pattern_entry));
 }
 
 void searchbar_activate(void)

@@ -3,6 +3,7 @@
 #include "unkkeys.h"
 #include "unkdb.h"
 #include "unksidebar.h"
+#include "unksearchbar.h"
 #include "unkfeedbar.h"
 #include "unkgui.h"
 
@@ -24,6 +25,8 @@ keyinfo keys[] = {
 	{ "key_delete", _("Delete word from database"), KEY_DELETE},
 	{ "key_detect_urls", _("Detect urls in text"), KEY_DETECT_URLS},
 	{ "key_detect_db", _("Detect words from database in text"), KEY_DETECT_DB},
+	{ "key_show_searchbar", _("Show searchbar"), KEY_SHOW_SEARCHBAR},
+	{ "key_show_feedbar", _("Show feedbar"), KEY_SHOW_FEEDBAR},
 	{ NULL, NULL, 0}
 };
 
@@ -213,6 +216,17 @@ gboolean keys_callback(guint key_id)
 			}
 			break;
 		}
+        case KEY_SHOW_SEARCHBAR:
+		{
+			searchbar_show(geany_plugin);
+			break;
+		}
+        case KEY_SHOW_FEEDBAR:
+		{
+			feedbar_show(geany_plugin);
+			break;
+		}
+        
 	}
 	
 	return TRUE;

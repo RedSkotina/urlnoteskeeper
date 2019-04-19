@@ -57,7 +57,7 @@ void feedbar_show(GeanyPlugin* geany_plugin)
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(geany_plugin->geany_data->main_widgets->message_window_notebook), page_num);
 	else 
     {   
-		g_error("error: cant find 'feedbar' page in message window notebook");
+		g_warning("error: cant find 'feedbar' page in message window notebook");
     	msgwin_status_add_string("error: cant find 'feedbar' page in message window notebook");
     }
 }
