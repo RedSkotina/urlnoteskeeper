@@ -13,19 +13,22 @@
 typedef struct Searchbar
 {
     GtkWidget *main_box;
+    GtkWidget *checkbutton;
     GtkWidget *pattern_entry;
     GtkTreeView *results_view;
     GtkListStore       *store;
+    GtkTreeModelSort   *sorted;
     GtkTreeModelFilter *filtered;
     
 }Searchbar;
 
-static Searchbar searchbar = {NULL, NULL, NULL, NULL, NULL};
+static Searchbar searchbar = {NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 enum
 {
     COLUMN_KEY = 0,
     COLUMN_VALUE,
+    COLUMN_RATING,
     COLUMN_BACKGROUND,
     COLUMN_FOREGROUND,
     N_COLUMNS
@@ -74,7 +77,15 @@ gchar* get_hex_inv_color_by_rating(gint rating)
 	return g_strdup(buf);
 }
 
-
+gint searchbar_get_mode()
+{
+    gint mode = SEARCH_ONLY_CURRENT_DOCUMENT;
+    if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(searchbar.checkbutton)))
+        mode = SEARCH_ONLY_CURRENT_DOCUMENT;
+    else
+        mode = SEARCH_FULL_BASE;
+    return mode;
+}
 gboolean row_visible(GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data)
 {
     gboolean is_visible = FALSE;
@@ -93,10 +104,10 @@ gboolean row_visible(GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data)
 static void on_row_activated (GtkTreeView *view, GtkTreePath *path, GtkTreeViewColumn *col, gpointer user_data)
 {
     GtkTreeIter iter;
-    GtkTreePath *child_path;
+    GtkTreePath *child_path, *filtered_path;
 
-    child_path = gtk_tree_model_filter_convert_path_to_child_path (GTK_TREE_MODEL_FILTER (searchbar.filtered),
-                                                                   path);
+    filtered_path = gtk_tree_model_sort_convert_path_to_child_path (GTK_TREE_MODEL_SORT (searchbar.sorted), path);
+    child_path = gtk_tree_model_filter_convert_path_to_child_path (GTK_TREE_MODEL_FILTER (searchbar.filtered), filtered_path);
 
     if (gtk_tree_model_get_iter (GTK_TREE_MODEL (searchbar.store), &iter, child_path)) {
         gchar *key;
@@ -147,6 +158,109 @@ static void pattern_entry_changed(GtkWidget *pattern_entry, gpointer user_data)
 {
     gtk_tree_model_filter_refilter (searchbar.filtered);
 }
+ 
+static void toggled_cb (GtkToggleButton *toggle_button, gpointer user_data)
+{
+  // if (gtk_toggle_button_get_active (toggle_button))
+      // // only doc;
+  // else
+     // all base;
+}
+
+static void refresh_button_clicked( GtkWidget *widget,  gpointer user_data )
+{
+    searchbar_store_reset(searchbar_get_mode(), document_get_current());
+}
+
+
+gint row_compare_func(gconstpointer a, gconstpointer b)
+{
+    gint res;
+    res = ( ((DBRow*)a)->rating > ((DBRow*)b)->rating )? 1 : (( ((DBRow*)a)->rating == ((DBRow*)b)->rating )? 0 : -1);
+    if (res == 0)
+        res = g_strcmp0( ((DBRow*)a)->url, ((DBRow*)b)->url );
+    return res;
+}
+
+// not transfer ownage of list elements
+static GList* filter_current_document_keys(GeanyDocument * doc, GList* list)
+{
+    if (!doc)
+        return NULL;
+    GList *res_list = g_list_copy (list);
+	gint flags = 0;
+	struct Sci_TextToFind ttf;
+	
+    ScintillaObject *sci = doc->editor->sci;
+	
+	gint len = scintilla_send_message(sci, SCI_GETLENGTH, 0, 0);
+	
+    GList* iterator;
+    for (iterator = list; iterator; iterator = iterator->next) 
+	{ 
+        ttf.chrg.cpMin = 0;
+        ttf.chrg.cpMax = len;
+        ttf.lpstrText = ((DBRow*)iterator->data)->url;
+		
+        if (scintilla_send_message(sci, SCI_FINDTEXT, flags, (sptr_t)&ttf) == -1)
+        {
+            res_list = g_list_remove(res_list, (DBRow*)iterator->data);
+        }
+    }   
+	
+    return res_list;
+}
+
+void searchbar_store_reset(gint mode, gpointer userdata)
+{
+    g_debug("searchbar_store_reset");
+    // cleanup current store
+    GtkTreeIter       iter;
+    gboolean          iter_valid;
+    
+    iter_valid = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(searchbar.store), &iter);
+    while (iter_valid)
+    {
+      // Maybe additional cleanup of related data
+      // gtk_tree_model_get(GTK_TREE_MODEL(store), &iter, .... -1);
+      iter_valid = gtk_list_store_remove(searchbar.store, &iter);
+    }
+    // Maybe update filtering and sorting afterwards
+    gtk_tree_model_filter_refilter(searchbar.filtered);
+    
+    // populate new data in store
+    GList* iterator;
+    GList* list_keys;
+    GList* list;
+    list_keys = unk_db_get_all();
+    switch (mode)
+    {
+        case SEARCH_FULL_BASE: 
+            list = list_keys;
+            break;
+        case SEARCH_ONLY_CURRENT_DOCUMENT: 
+            list = filter_current_document_keys( (GeanyDocument*) userdata, list_keys);
+            break;
+        default:
+            list = list_keys;
+            break;
+    }
+    list = g_list_sort(list, row_compare_func);
+    list = g_list_reverse(list);
+	for (iterator = list; iterator; iterator = iterator->next) 
+	{
+        gtk_list_store_append (searchbar.store, &iter);
+        gtk_list_store_set (searchbar.store, &iter, 
+            COLUMN_KEY, ((DBRow*)iterator->data)->url, 
+            COLUMN_VALUE, ((DBRow*)iterator->data)->note,
+            COLUMN_RATING, ((DBRow*)iterator->data)->rating,
+            COLUMN_BACKGROUND, get_hex_color_by_rating(((DBRow*)iterator->data)->rating),
+            COLUMN_FOREGROUND, get_hex_inv_color_by_rating(((DBRow*)iterator->data)->rating),
+            -1);
+     };
+     
+    g_list_free_full (list_keys, row_destroyed);
+}
     
 void searchbar_init(GeanyPlugin* geany_plugin)
 {
@@ -157,27 +271,38 @@ void searchbar_init(GeanyPlugin* geany_plugin)
 	searchbar.main_box = gtk_vbox_new(FALSE, 1);
     
     /**** search pattern ****/
-	searchbar.pattern_entry = gtk_entry_new();
+	GtkWidget *hbox = gtk_hbox_new(FALSE, 1);
+    
+    searchbar.pattern_entry = gtk_entry_new();
     g_signal_connect (searchbar.pattern_entry, "changed", G_CALLBACK (pattern_entry_changed), NULL);
     
-    gtk_box_pack_start(GTK_BOX(searchbar.main_box), searchbar.pattern_entry, FALSE, FALSE, 1);
+    gtk_box_pack_start(GTK_BOX(hbox), searchbar.pattern_entry, TRUE, TRUE, 1);
+    
+    searchbar.checkbutton = gtk_check_button_new_with_label ("Current document");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (searchbar.checkbutton), TRUE);
+    g_signal_connect (GTK_TOGGLE_BUTTON (searchbar.checkbutton), "toggled", G_CALLBACK (toggled_cb), NULL);
+    gtk_box_pack_start(GTK_BOX(hbox), searchbar.checkbutton, FALSE, FALSE, 1);
+    
+    GtkWidget * refresh_button = gtk_button_new_with_label ("Refresh");
+    g_signal_connect (refresh_button, "clicked", G_CALLBACK (refresh_button_clicked), NULL);
+    gtk_box_pack_start(GTK_BOX(hbox), refresh_button, FALSE, FALSE, 1);
+    
+    gtk_box_pack_start(GTK_BOX(searchbar.main_box), hbox, FALSE, FALSE, 1);
     
 	/**** text ****/
 	searchbar.store = gtk_list_store_new (N_COLUMNS,
                                           G_TYPE_STRING,
                                           G_TYPE_STRING,
+                                          G_TYPE_INT,
                                           G_TYPE_STRING,
                                           G_TYPE_STRING);
     
-    
-    // searchbar.results_list = gtk_list_box_new();
-	// gtk_list_box_set_sort_func (GTK_LIST_BOX (searchbar.results_list), (GtkListBoxSortFunc)gtk_message_row_sort, searchbar.results_list, NULL);
-    // gtk_list_box_set_activate_on_single_click (GTK_LIST_BOX (searchbar.results_list), TRUE);
-    // //g_signal_connect (searchbar.results_list, "row-activated", G_CALLBACK (row_activated), NULL);
     searchbar.filtered = GTK_TREE_MODEL_FILTER (gtk_tree_model_filter_new (GTK_TREE_MODEL (searchbar.store), NULL));
     gtk_tree_model_filter_set_visible_func (searchbar.filtered, (GtkTreeModelFilterVisibleFunc) row_visible, NULL, NULL);
     
-    searchbar.results_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL(searchbar.filtered)));
+    searchbar.sorted = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (searchbar.filtered)));
+    
+    searchbar.results_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL(searchbar.sorted)));
     
     g_signal_connect (searchbar.results_view, "row-activated", G_CALLBACK (on_row_activated), searchbar.store);
                       
@@ -198,21 +323,9 @@ void searchbar_init(GeanyPlugin* geany_plugin)
             NULL);
     gtk_tree_view_append_column (searchbar.results_view, value_column);
     
-    GtkTreeIter iter;
+    gtk_tree_view_column_set_sort_column_id (key_column, COLUMN_KEY);
     
-    GList* iterator;
-    GList* list_keys = unk_db_get_all();
-	for (iterator = list_keys; iterator; iterator = iterator->next) 
-	{
-        gtk_list_store_append (searchbar.store, &iter);
-        gtk_list_store_set (searchbar.store, &iter, 
-            COLUMN_KEY, ((DBRow*)iterator->data)->url, 
-            COLUMN_VALUE, ((DBRow*)iterator->data)->note,
-            COLUMN_BACKGROUND, get_hex_color_by_rating(((DBRow*)iterator->data)->rating),
-            COLUMN_FOREGROUND, get_hex_inv_color_by_rating(((DBRow*)iterator->data)->rating),
-            -1);
-    };
-    g_list_free_full (list_keys, row_destroyed );
+    searchbar_store_reset(searchbar_get_mode(), document_get_current());
     
     scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),

@@ -42,6 +42,7 @@ static PluginCallback unk_plugin_callbacks[] =
 	 * If 'after' is FALSE, the callback is run @a before the default handler, so the plugin
 	 * can prevent Geany from processing the notification. Use this with care. */
 	{ "document-open", (GCallback) &on_document_open, TRUE, NULL },
+	{ "document-activate", (GCallback) &on_document_activate, TRUE, NULL },
 	{ "editor-notify", (GCallback) &unk_gui_editor_notify, FALSE, NULL },
 	{ NULL, NULL, FALSE, NULL }
 };

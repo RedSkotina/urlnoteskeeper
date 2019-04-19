@@ -9,6 +9,7 @@
 #include "unkplugin.h"
 #include "unksidebar.h"
 #include "unkfeedbar.h"
+#include "unksearchbar.h"
 #include "unkdb.h"
 #include <math.h>
 
@@ -223,7 +224,6 @@ void clear_all_db_marks(GeanyEditor *editor)
 	scintilla_send_message(editor->sci, SCI_INDICATORCLEARRANGE, 0, len);
 	scintilla_send_message(editor->sci, SCI_SETINDICATORCURRENT, GEANY_INDICATOR_UNK_NEGATIVE_DB, 0);
 	scintilla_send_message(editor->sci, SCI_INDICATORCLEARRANGE, 0, len);
-	
 }
 
 /*
@@ -265,6 +265,19 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 		gint nLen = sci_get_length(doc->editor->sci);
 		set_db_marks(doc->editor, 0, nLen);
 	}
+    
+    if (searchbar_get_mode() == SEARCH_ONLY_CURRENT_DOCUMENT)
+        searchbar_store_reset(SEARCH_ONLY_CURRENT_DOCUMENT, doc);
+}
+
+/*
+ * 	Occures on document activation.
+ */
+void on_document_activate(GObject *obj, GeanyDocument *doc, gpointer user_data)
+{
+	g_debug("on_document_activate");
+    if (searchbar_get_mode() == SEARCH_ONLY_CURRENT_DOCUMENT)
+        searchbar_store_reset(SEARCH_ONLY_CURRENT_DOCUMENT, doc);
 }
 
 gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
@@ -368,7 +381,6 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				g_free(tr.lpstrText);
 				g_free(row->note);
 				g_free(row);
-                
 			}
 			else if (scintilla_send_message(editor->sci, SCI_INDICATORVALUEAT, GEANY_INDICATOR_UNK_AUTO_DETECTED, nt->position))
 			{
@@ -401,8 +413,6 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				g_free(note);
 				
 			};
-			
-								
 			break;
 		case SCN_DWELLSTART:
 			g_debug("unk_gui_editor_notify(SCN_DWELLSTART)");
@@ -473,7 +483,6 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				scintilla_send_message (editor->sci, SCI_CALLTIPCANCEL, 0, 0);
 			}
 			break;
-		
 	};
 
 	return FALSE;

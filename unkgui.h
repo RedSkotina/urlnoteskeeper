@@ -38,6 +38,8 @@ void clear_all_db_marks(GeanyEditor *editor);
 
 void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data);
 
+void on_document_activate(GObject *obj, GeanyDocument *doc, gpointer user_data);
+
 gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 							  SCNotification *nt, gpointer data);
 
