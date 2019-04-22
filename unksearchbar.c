@@ -91,14 +91,16 @@ gboolean row_visible(GtkTreeModel *model, GtkTreeIter *iter, gpointer user_data)
 {
     gboolean is_visible = FALSE;
     const gchar* pattern_text = gtk_entry_get_text(GTK_ENTRY(searchbar.pattern_entry));
-    
+    if (!pattern_text)
+		return FALSE;
     gchar* value;
     gtk_tree_model_get (model, iter, COLUMN_VALUE, &value, -1);
-    
+    if (!value)
+		return FALSE;
     gchar* found_seq = strstr(value, pattern_text);
     if (found_seq)
             is_visible = TRUE;
-    
+    g_free(value);
     return is_visible; 
 };
 
