@@ -248,7 +248,7 @@ void searchbar_store_reset(gint mode, gpointer userdata)
     GList* iterator;
     GList* list_keys;
     GList* list;
-    list_keys = unk_db_get_all();
+    list_keys = unk_db_get_all_local();
     switch (mode)
     {
         case SEARCH_FULL_BASE: 

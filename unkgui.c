@@ -187,7 +187,7 @@ void set_db_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 	tr.lpstrText = g_malloc(range_end_pos - range_start_pos + 1);
 	scintilla_send_message(editor->sci, SCI_GETTEXTRANGE, 0, (sptr_t)&tr);
 	
-	list_keys = unk_db_get_all();
+	list_keys = unk_db_get_all_local();
 	for (iterator = list_keys; iterator; iterator = iterator->next) 
 	{
 		list_db2 = search_marks(editor, ((DBRow*)iterator->data)->url);
@@ -402,9 +402,13 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				
 				sidebar_show(geany_plugin);			
 				
-                feedbar_reset();
+                //feedbar_reset();
                 feedbar_show(geany_plugin);			
 				
+                GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none");
+				
+                feedbar_set_notes(secondary_rows);
+                
                 sidebar_activate();
 				feedbar_activate();
 				

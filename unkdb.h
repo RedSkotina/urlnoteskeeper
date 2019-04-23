@@ -32,7 +32,9 @@ gint unk_db_cleanup(void);
 		
 GList* unk_db_get_keys();				  
 
-GList* unk_db_get_all();
+GList* unk_db_get_all_local();
+
+GList* unk_db_get_all_global();
 
 GList* unk_db_get_all_db_names();
 

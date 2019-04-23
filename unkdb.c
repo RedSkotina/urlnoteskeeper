@@ -604,10 +604,10 @@ GList* unk_db_get_keys()
 	return list;
 }
 
-GList* unk_db_get_all()
+GList* unk_db_get_all_local()
 {
 	
-	g_debug("unk_db_get_all");
+	g_debug("unk_db_get_all_local");
     GList* list = NULL;
 	sqlite3_stmt *stmt;
 	gint ret;
