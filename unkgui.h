@@ -16,6 +16,7 @@ typedef struct ConfigWidgets{
  GtkWidget* checkbox_enable_urls_detect_on_open_document;
  GtkWidget* checkbox_enable_db_detect_on_open_document;
  GtkWidget* checkbox_enable_search_results_fill_on_open_document;
+ GtkWidget* checkbox_enable_tooltips;
  GtkWidget* entry_db_path;
  GtkColorButton * button_positive_rating_color;
  GtkColorButton * button_neutral_rating_color;

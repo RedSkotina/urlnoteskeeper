@@ -68,6 +68,9 @@ static void config_init(void)
     unk_info->enable_search_results_fill_on_open_document = utils_get_setting_boolean(
 		config, "general", "enable_search_results_fill_on_open_document", FALSE);
 
+    unk_info->enable_tooltips = utils_get_setting_boolean(
+		config, "general", "enable_tooltips", FALSE);
+
 	unk_info->db_path = utils_get_setting_string(
 		config, "general", "db_path", "~/unk.sqlite3");
 	

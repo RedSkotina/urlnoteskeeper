@@ -427,6 +427,8 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			break;
 		case SCN_DWELLSTART:
 			g_debug("unk_gui_editor_notify(SCN_DWELLSTART)");
+            if (!unk_info->enable_tooltips)
+                break;
             indicator_exist = FALSE;
 			indicator_id = 0;
 			indicator_bitmap = scintilla_send_message(editor->sci, SCI_INDICATORALLONFOR, nt->position, 0);
@@ -489,6 +491,8 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 			break;
 		case SCN_DWELLEND:
 			g_debug("unk_gui_editor_notify(SCN_DWELLEND)");
+            if (!unk_info->enable_tooltips)
+                break;
             if (scintilla_send_message (editor->sci, SCI_CALLTIPACTIVE, 0, 0))
 			{
 				scintilla_send_message (editor->sci, SCI_CALLTIPCANCEL, 0, 0);
@@ -529,6 +533,9 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
 		
         unk_info->enable_search_results_fill_on_open_document = gtk_toggle_button_get_active(
 			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_search_results_fill_on_open_document));
+		
+        unk_info->enable_tooltips = gtk_toggle_button_get_active(
+			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_tooltips));
 		
 		SETPTR(unk_info->db_path, g_strdup(gtk_entry_get_text(GTK_ENTRY(config_widgets->entry_db_path))));
 		
@@ -572,6 +579,8 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
             unk_info->enable_db_detect_on_open_document);
         g_key_file_set_boolean(config, "general", "enable_search_results_fill_on_open_document",
             unk_info->enable_search_results_fill_on_open_document);
+        g_key_file_set_boolean(config, "general", "enable_tooltips",
+            unk_info->enable_tooltips);
         
 		g_key_file_set_string(config, "general", "db_path", unk_info->db_path);
 		
