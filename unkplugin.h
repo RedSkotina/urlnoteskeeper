@@ -6,7 +6,8 @@ typedef struct UnkInfo
 	gchar* db_path;
 	gboolean enable_urls_detect_on_open_document;
 	gboolean enable_db_detect_on_open_document;
-	GdkRGBA * positive_rating_color;
+    gboolean enable_search_results_fill_on_open_document;
+    GdkRGBA * positive_rating_color;
 	GdkRGBA * neutral_rating_color;
 	GdkRGBA * negative_rating_color;
 	

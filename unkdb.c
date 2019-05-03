@@ -34,6 +34,16 @@ static gchar* primary_db_filename = NULL;
 #define GET_ERROR(r, f, h) \
 	((r != SQLITE_OK && r != SQLITE_DONE)? extract_error(r, f, h, __LINE__,__func__) : NULL)
 	
+
+static void row_hashtable_key_destroyed(gpointer key) {
+	g_free((gchar*)key);
+}
+
+void row_destroyed(gpointer value) {
+	g_free(((DBRow*)value)->url);
+	g_free(((DBRow*)value)->note);
+	g_free((DBRow*)value);
+}
  
 gchar*
 extract_error (int retcode, gchar *fn, sqlite3 *dbc, int line, const char *func)
@@ -200,6 +210,56 @@ gboolean unk_db_lock_remove(gchar* filename)
 	return TRUE;
 }
 
+static gboolean unk_db_check_duplicates()
+{
+    g_debug("unk_db_check_duplicates");
+	gboolean result = TRUE;
+    GList* iterator;
+    GList* list = unk_db_get_all_local();
+    
+    GHashTable* ht = g_hash_table_new_full (g_str_hash, g_str_equal, row_hashtable_key_destroyed, g_free);
+    
+    for (iterator = list; iterator; iterator = iterator->next) 
+    {
+        gchar *lkey = g_utf8_strdown(((DBRow*)iterator->data)->url, -1);
+        g_print(lkey);
+        gint* value = g_hash_table_lookup(ht, lkey);
+        gint* value1 = g_malloc(sizeof (gint));
+        *value1 = 1;        
+        if (value)
+        {
+            *value1 = *value1 + 1;
+            g_hash_table_replace(ht, lkey, value1);
+        }
+        else
+            g_hash_table_insert(ht, lkey, value1);
+    }
+    g_list_free_full (list, row_destroyed);
+    
+    gchar* buffer = g_malloc(255);
+	
+    GHashTableIter iter;
+    gpointer key, value;
+    g_hash_table_iter_init(&iter, ht);
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        if (*((gint*)value) > 1)
+        {
+            g_sprintf(buffer, "Warning: detected duplicated key '%s' in database '%s'", (gchar*)key, primary_db_filename);
+	        g_warning(buffer);
+            msgwin_status_add_string(buffer);
+            result = FALSE;           
+        }
+    }
+    g_hash_table_remove_all(ht);
+    return result;
+}
+
+// GList* filter_duplicated_keys(GList* list)
+// {
+    
+// }
+
 gint unk_db_init(const gchar* filepath)
 {
 	g_debug("unk_db_init");
@@ -303,7 +363,8 @@ gint unk_db_init(const gchar* filepath)
         }
     };
 
-	    		
+	unk_db_check_duplicates();
+    
 	//secondary database
 	while ((filename = g_dir_read_name(db_dir)))
 	{
@@ -353,10 +414,11 @@ gint unk_db_init(const gchar* filepath)
 DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
 {	
 	g_debug("unk_db_get_primary");
+    gchar *lkey = g_utf8_strdown(key, -1);
     
     DBRow* row = g_malloc(sizeof(DBRow));
     row->error = NULL;
-    row->url = g_strdup(key);
+    row->url = g_strdup(lkey);
 	row->note = NULL;
     row->rating = 0;
     
@@ -364,6 +426,7 @@ DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
     {
         g_warning(_("primary database is not opened"));
         msgwin_status_add_string(_("error: primary database is not opened"));
+        g_free(lkey);
         return row;
     }
       
@@ -374,13 +437,15 @@ DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
 	ret = sqlite3_prepare_v2(primary_dbc, sql, strlen(sql)+1, &stmt, 0);    
     if (ret != SQLITE_OK) {
 		SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
-		return row;
+		g_free(lkey);
+        return row;
     }
     
-    ret = sqlite3_bind_text(stmt, 1, key, strlen(key), SQLITE_TRANSIENT );
+    ret = sqlite3_bind_text(stmt, 1, lkey, strlen(lkey), SQLITE_TRANSIENT );
     if (ret != SQLITE_OK) {
 		SHOW_ERROR(ret, "sqlite3_bind_text", primary_dbc);
-		return row;
+		g_free(lkey);
+        return row;
     }
     
     //g_debug("%s", sqlite3_expanded_sql(stmt));
@@ -407,22 +472,16 @@ DBRow* unk_db_get_primary(const gchar* key, const gchar* default_value)
 	}
          
 	sqlite3_finalize(stmt);
-	return row;
+    g_free(lkey);
+    
+    return row;
 }
 
-static void row_hashtable_key_destroyed(gpointer key) {
-	g_free((gchar*)key);
-}
-
-void row_destroyed(gpointer value) {
-	g_free(((DBRow*)value)->url);
-	g_free(((DBRow*)value)->note);
-	g_free((DBRow*)value);
-}
 
 GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
 {	
 	g_debug("unk_db_get_secondary");
+    gchar *lkey = g_utf8_strdown(key, -1);
     GHashTable* ht = g_hash_table_new_full (g_str_hash, g_str_equal, row_hashtable_key_destroyed, row_destroyed);
     
     sqlite3_stmt *stmt = NULL;
@@ -434,7 +493,7 @@ GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
         DBRow* row = g_malloc(sizeof(DBRow));
         DBInfo* db = (DBInfo*)(it->data);
         
-        row->url = g_strdup(key);
+        row->url = g_strdup(lkey);
         row->note = NULL;
         row->rating = 0;
         
@@ -444,7 +503,7 @@ GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
             goto select_continue;
         }
         
-        ret = sqlite3_bind_text(stmt, 1, key, strlen(key), SQLITE_TRANSIENT );
+        ret = sqlite3_bind_text(stmt, 1, lkey, strlen(lkey), SQLITE_TRANSIENT );
         if (ret != SQLITE_OK) {
             row->error = GET_ERROR(ret, "sqlite3_bind_text", db->dbc);
             goto select_continue;
@@ -479,13 +538,14 @@ GHashTable* unk_db_get_secondary(const gchar* key, const gchar* default_value)
     }
              
 	sqlite3_finalize(stmt);
-	
+	g_free(lkey);
 	return ht;
 }
 
 gboolean unk_db_set(const gchar* key, const gchar* value, gint rating)
 {
 	g_debug("unk_db_set");
+    gchar *lkey = g_utf8_strdown(key, -1);
     sqlite3_stmt *stmt;
 	gint ret;
 	
@@ -493,23 +553,26 @@ gboolean unk_db_set(const gchar* key, const gchar* value, gint rating)
     {
         g_warning(_("primary database is not opened"));
         msgwin_status_add_string(_("error: primary database is not opened"));
+        g_free(lkey);
         return FALSE;
     }
-	if (key == NULL )
+	if (lkey == NULL )
 	{
-		g_warning("error unk_db_set: key == NULL");
-		return FALSE;
+		g_warning("error unk_db_set: lkey == NULL");
+		g_free(lkey);
+        return FALSE;
 	}
-	if (!strlen(key) )
+	if (!strlen(lkey) )
 	{
-		g_warning("error unk_db_set: strlen(key) == 0");
-		return FALSE;
+		g_warning("error unk_db_set: strlen(lkey) == 0");
+		g_free(lkey);
+        return FALSE;
 	}
 	
 	ret = sqlite3_prepare_v2 (primary_dbc, "REPLACE INTO urlnotes (url, note, rating) VALUES (?1,?2,?3);", -1, &stmt, NULL);
 	HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 
-	ret = sqlite3_bind_text(stmt, 1, key,  strlen(key), SQLITE_TRANSIENT );
+	ret = sqlite3_bind_text(stmt, 1, lkey,  strlen(lkey), SQLITE_TRANSIENT );
     HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 	
 	ret = sqlite3_bind_text(stmt, 2, value, strlen(value), NULL);
@@ -523,12 +586,14 @@ gboolean unk_db_set(const gchar* key, const gchar* value, gint rating)
 	 
 	sqlite3_finalize(stmt);
 	
+	g_free(lkey);
 	return TRUE;
 }
 
 gboolean unk_db_delete(const gchar* key)
 {
 	g_debug("unk_db_delete");
+    gchar *lkey = g_utf8_strdown(key, -1);
     sqlite3_stmt *stmt;
 	gint ret;
 	
@@ -536,30 +601,33 @@ gboolean unk_db_delete(const gchar* key)
     {
         g_warning(_("primary database is not opened"));
         msgwin_status_add_string(_("error: primary database is not opened"));
+        g_free(lkey);
         return FALSE;
     }
-	if (key == NULL )
+	if (lkey == NULL )
 	{
-		g_warning("error unk_db_delete: key == NULL");
-		return FALSE;
+		g_warning("error unk_db_delete: lkey == NULL");
+		g_free(lkey);
+        return FALSE;
 	}
-	if (!strlen(key) )
+	if (!strlen(lkey) )
 	{
-		g_warning("error unk_db_delete: strlen(key) == 0");
-		return FALSE;
+		g_warning("error unk_db_delete: strlen(lkey) == 0");
+		g_free(lkey);
+        return FALSE;
 	}
 	
 	ret = sqlite3_prepare_v2 (primary_dbc, "DELETE FROM urlnotes WHERE url =  ?1;", -1, &stmt, NULL);
 	HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 
-	ret = sqlite3_bind_text(stmt, 1, key,  strlen(key), SQLITE_TRANSIENT );
+	ret = sqlite3_bind_text(stmt, 1, lkey,  strlen(lkey), SQLITE_TRANSIENT );
     HANDLE_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
 		
 	ret = sqlite3_step (stmt);
 	HANDLE_ERROR(ret, "sqlite3_step", primary_dbc);
 	 
 	sqlite3_finalize(stmt);
-	
+	g_free(lkey);
 	return TRUE;
 }
 
@@ -567,7 +635,7 @@ GList* unk_db_get_keys()
 {
 	g_debug("unk_db_get_keys");
     GList* list = NULL;
-	gchar* value;
+	//gchar* value;
 	sqlite3_stmt *stmt;
 	gint ret;
 	
@@ -586,9 +654,9 @@ GList* unk_db_get_keys()
     }
     while ( (ret = sqlite3_step(stmt)) == SQLITE_ROW )
     {
-		value = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
-		list = g_list_append(list, value);
-	}
+		gchar * lkey = g_utf8_strdown((const gchar*)sqlite3_column_text(stmt,0), -1);
+        list = g_list_append(list, lkey);
+    }
     
     if (ret != SQLITE_DONE)
     {
@@ -631,7 +699,54 @@ GList* unk_db_get_all_local()
 		row->note = NULL;
 		row->rating = 0;
     
-		row->url = g_strdup((const gchar*)sqlite3_column_text(stmt,0));
+		row->url = g_utf8_strdown((const gchar*)sqlite3_column_text(stmt,0), -1);
+		row->note = g_strdup((const gchar*)sqlite3_column_text(stmt,1));
+		row->rating = (gint)sqlite3_column_int(stmt,2);
+		list = g_list_append(list, row);
+	}
+    
+    if (ret != SQLITE_DONE)
+    {
+		SHOW_ERROR(ret, "sqlite3_step", primary_dbc);
+		const char *err = NULL;
+		err = sqlite3_errmsg (primary_dbc);
+		if (err)
+			g_warning("\nError message : %s\n\n",err);
+	}
+         
+	sqlite3_finalize(stmt);
+	
+	return list;
+}
+
+GList* unk_db_get_all_global()
+{
+	
+	g_debug("unk_db_get_all_global");
+    GList* list = NULL;
+	sqlite3_stmt *stmt;
+	gint ret;
+	if (!primary_dbc) 
+    {
+        g_warning(_("primary database is not opened"));
+        msgwin_status_add_string(_("error: primary database is not opened"));
+        return list;
+    }
+	gchar* sql = "SELECT url,note,rating FROM urlnotes;";
+	ret = sqlite3_prepare_v2(primary_dbc, sql, strlen(sql)+1, &stmt, 0);    
+    if (ret != SQLITE_OK) {
+		SHOW_ERROR(ret, "sqlite3_prepare_v2", primary_dbc);
+		return list;
+    }
+    while ( (ret = sqlite3_step(stmt)) == SQLITE_ROW )
+    {
+		DBRow* row = g_malloc(sizeof(DBRow));
+		row->error = NULL;
+		row->url = NULL;
+		row->note = NULL;
+		row->rating = 0;
+    
+		row->url = g_utf8_strdown((const gchar*)sqlite3_column_text(stmt,0), -1);
 		row->note = g_strdup((const gchar*)sqlite3_column_text(stmt,1));
 		row->rating = (gint)sqlite3_column_int(stmt,2);
 		list = g_list_append(list, row);

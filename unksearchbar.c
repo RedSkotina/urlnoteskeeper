@@ -129,7 +129,7 @@ static void on_row_activated (GtkTreeView *view, GtkTreePath *path, GtkTreeViewC
 				
         sidebar_show(geany_plugin);			
 				
-        GHashTable* secondary_rows = unk_db_get_secondary(key, "none");
+        GHashTable* secondary_rows = unk_db_get_secondary (key, "none");
 				
         feedbar_set_notes(secondary_rows);
                 

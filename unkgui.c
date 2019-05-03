@@ -121,7 +121,8 @@ GList* search_marks(GeanyEditor *editor, const gchar *search_text)
 {
 	g_debug("search_marks");
     GList *list = NULL;
-	gint start_pos, flags = 0;
+	gint start_pos = 0;
+    gint flags = 0;
 	struct Sci_TextToFind ttf;
 	
 	ScintillaObject *sci = editor->sci;
@@ -190,7 +191,7 @@ void set_db_marks(GeanyEditor *editor, gint range_start_pos, gint range_end_pos)
 	list_keys = unk_db_get_all_local();
 	for (iterator = list_keys; iterator; iterator = iterator->next) 
 	{
-		list_db2 = search_marks(editor, ((DBRow*)iterator->data)->url);
+        list_db2 = search_marks(editor, ((DBRow*)iterator->data)->url);
 		for (it2 = list_db2; it2; it2 = it2->next) 
 		{
 			((MarkInfo*)(it2->data))->rating = ((DBRow*)iterator->data)->rating;
@@ -265,9 +266,11 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 		gint nLen = sci_get_length(doc->editor->sci);
 		set_db_marks(doc->editor, 0, nLen);
 	}
-    
-    if (searchbar_get_mode() == SEARCH_ONLY_CURRENT_DOCUMENT)
-        searchbar_store_reset(SEARCH_ONLY_CURRENT_DOCUMENT, doc);
+    if (unk_info->enable_search_results_fill_on_open_document)
+	{
+        if (searchbar_get_mode() == SEARCH_ONLY_CURRENT_DOCUMENT)
+            searchbar_store_reset(SEARCH_ONLY_CURRENT_DOCUMENT, doc);
+    }
 }
 
 /*
@@ -276,8 +279,12 @@ void on_document_open(GObject *obj, GeanyDocument *doc, gpointer user_data)
 void on_document_activate(GObject *obj, GeanyDocument *doc, gpointer user_data)
 {
 	g_debug("on_document_activate");
-    if (searchbar_get_mode() == SEARCH_ONLY_CURRENT_DOCUMENT)
-        searchbar_store_reset(SEARCH_ONLY_CURRENT_DOCUMENT, doc);
+    if (unk_info->enable_search_results_fill_on_open_document)
+	{
+	
+        if (searchbar_get_mode() == SEARCH_ONLY_CURRENT_DOCUMENT)
+            searchbar_store_reset(SEARCH_ONLY_CURRENT_DOCUMENT, doc);
+    }
 }
 
 gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
@@ -520,6 +527,9 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
 		unk_info->enable_db_detect_on_open_document = gtk_toggle_button_get_active(
 			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_db_detect_on_open_document));
 		
+        unk_info->enable_search_results_fill_on_open_document = gtk_toggle_button_get_active(
+			GTK_TOGGLE_BUTTON(config_widgets->checkbox_enable_search_results_fill_on_open_document));
+		
 		SETPTR(unk_info->db_path, g_strdup(gtk_entry_get_text(GTK_ENTRY(config_widgets->entry_db_path))));
 		
 		G_GNUC_BEGIN_IGNORE_DEPRECATIONS
@@ -560,7 +570,9 @@ on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
             unk_info->enable_urls_detect_on_open_document);
 		g_key_file_set_boolean(config, "general", "enable_db_detect_on_open_document",
             unk_info->enable_db_detect_on_open_document);
-
+        g_key_file_set_boolean(config, "general", "enable_search_results_fill_on_open_document",
+            unk_info->enable_search_results_fill_on_open_document);
+        
 		g_key_file_set_string(config, "general", "db_path", unk_info->db_path);
 		
 		gchar* positive_rating_color_s = gdk_rgba_to_string (unk_info->positive_rating_color);
@@ -598,7 +610,7 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 {
 	g_debug("create_configure_widget");
     GtkWidget *label_db_path, *entry_db_path, *vbox, *checkbox_enable_urls_detect_on_open_document, *checkbox_enable_db_detect_on_open_document;
-
+    GtkWidget *checkbox_enable_search_results_fill_on_open_document;
 	GtkWidget *label_positive_rating_color, *label_neutral_rating_color, *label_negative_rating_color;
 	GtkColorButton *button_positive_rating_color, *button_neutral_rating_color, *button_negative_rating_color;
 	GtkWidget *positive_rating_color_box, *neutral_rating_color_box, *negative_rating_color_box; 
@@ -679,6 +691,17 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_db_detect_on_open_document, FALSE, FALSE, 6);
 	}
 	
+    {
+		checkbox_enable_search_results_fill_on_open_document = gtk_check_button_new_with_mnemonic(_("_Enable search on open document"));
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox_enable_search_results_fill_on_open_document), unk_info->enable_search_results_fill_on_open_document);
+		//gtk_button_set_focus_on_click(GTK_BUTTON(checkbox_enable_urls_detect_on_open_document), FALSE);
+		config_widgets->checkbox_enable_search_results_fill_on_open_document = checkbox_enable_search_results_fill_on_open_document;
+		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_search_results_fill_on_open_document, FALSE, FALSE, 6);
+	}
+	
+    
+    
+    
 	gtk_widget_show_all(vbox);
 
 	g_signal_connect(dialog, "response", G_CALLBACK(on_configure_response), NULL);
