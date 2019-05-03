@@ -619,7 +619,7 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 {
 	g_debug("create_configure_widget");
     GtkWidget *label_db_path, *entry_db_path, *vbox, *checkbox_enable_urls_detect_on_open_document, *checkbox_enable_db_detect_on_open_document;
-    GtkWidget *checkbox_enable_search_results_fill_on_open_document;
+    GtkWidget *checkbox_enable_search_results_fill_on_open_document, *checkbox_enable_tooltips;
 	GtkWidget *label_positive_rating_color, *label_neutral_rating_color, *label_negative_rating_color;
 	GtkColorButton *button_positive_rating_color, *button_neutral_rating_color, *button_negative_rating_color;
 	GtkWidget *positive_rating_color_box, *neutral_rating_color_box, *negative_rating_color_box; 
@@ -708,7 +708,13 @@ GtkWidget *create_configure_widget(GeanyPlugin *plugin, GtkDialog *dialog, gpoin
 		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_search_results_fill_on_open_document, FALSE, FALSE, 6);
 	}
 	
-    
+    {
+		checkbox_enable_tooltips = gtk_check_button_new_with_mnemonic(_("_Enable tooltips"));
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox_enable_tooltips), unk_info->enable_tooltips);
+		//gtk_button_set_focus_on_click(GTK_BUTTON(checkbox_enable_urls_detect_on_open_document), FALSE);
+		config_widgets->checkbox_enable_tooltips = checkbox_enable_tooltips;
+		gtk_box_pack_start(GTK_BOX(vbox), checkbox_enable_tooltips, FALSE, FALSE, 6);
+	}
     
     
 	gtk_widget_show_all(vbox);
