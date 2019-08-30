@@ -11,6 +11,9 @@ typedef struct UnkInfo
     GdkRGBA * positive_rating_color;
 	GdkRGBA * neutral_rating_color;
 	GdkRGBA * negative_rating_color;
+	GdkRGBA * rating_color_2;
+	GdkRGBA * rating_color_3;
+	GdkRGBA * rating_color_4;
 	
 } UnkInfo;
 

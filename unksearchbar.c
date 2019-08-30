@@ -49,6 +49,15 @@ gchar* get_hex_color_by_rating(gint rating)
 		case 1:
 			gdk_rgba_to_hex_string (unk_info->positive_rating_color, buf);
 			break;
+		case 2:
+			gdk_rgba_to_hex_string (unk_info->rating_color_2, buf);
+			break;
+		case 3:
+			gdk_rgba_to_hex_string (unk_info->rating_color_3, buf);
+			break;
+		case 4:
+			gdk_rgba_to_hex_string (unk_info->rating_color_4, buf);
+			break;
 		default:
 			g_warning("unknown rating value %d", rating);
 	}
@@ -70,6 +79,15 @@ gchar* get_hex_inv_color_by_rating(gint rating)
 			break;
 		case 1:
 			gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->positive_rating_color, &inv_color), buf);
+			break;
+		case 2:
+			gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->rating_color_2, &inv_color), buf);
+			break;
+		case 3:
+			gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->rating_color_3, &inv_color), buf);
+			break;
+		case 4:
+			gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->rating_color_4, &inv_color), buf);
 			break;
 		default:
 			g_warning("unknown rating value %d", rating);

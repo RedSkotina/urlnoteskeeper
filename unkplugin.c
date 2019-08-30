@@ -106,6 +106,36 @@ static void config_init(void)
 	};
 	g_free(negative_rating_color_s);
 	
+	unk_info->rating_color_2 = g_malloc0(sizeof(GdkRGBA));
+	gchar* rating_color_2_s = utils_get_setting_string(
+		config, "colors", "rating_color_2", "rgba(255,0,0,0.6)");
+	if (!gdk_rgba_parse (unk_info->rating_color_2, rating_color_2_s))
+	{
+		g_warning("cant parse negative_rating_color string '%s'",rating_color_2_s);
+		gdk_rgba_parse (unk_info->rating_color_2, "rgba(255,0,0,0.6)");
+	};
+	g_free(rating_color_2_s);
+	
+	unk_info->rating_color_3 = g_malloc0(sizeof(GdkRGBA));
+	gchar* rating_color_3_s = utils_get_setting_string(
+		config, "colors", "rating_color_3", "rgba(255,0,0,0.6)");
+	if (!gdk_rgba_parse (unk_info->rating_color_3, rating_color_3_s))
+	{
+		g_warning("cant parse negative_rating_color string '%s'",rating_color_3_s);
+		gdk_rgba_parse (unk_info->rating_color_3, "rgba(255,0,0,0.6)");
+	};
+	g_free(rating_color_3_s);
+	
+	unk_info->rating_color_4 = g_malloc0(sizeof(GdkRGBA));
+	gchar* rating_color_4_s = utils_get_setting_string(
+		config, "colors", "rating_color_4", "rgba(255,0,0,0.6)");
+	if (!gdk_rgba_parse (unk_info->rating_color_4, rating_color_4_s))
+	{
+		g_warning("cant parse negative_rating_color string '%s'",rating_color_4_s);
+		gdk_rgba_parse (unk_info->rating_color_4, "rgba(255,0,0,0.6)");
+	};
+	g_free(rating_color_4_s);
+	
 	g_key_file_free(config);
 }
 
@@ -161,6 +191,9 @@ static void unk_plugin_cleanup(GeanyPlugin *plugin, gpointer data)
 	g_free(unk_info->positive_rating_color);
 	g_free(unk_info->neutral_rating_color);
 	g_free(unk_info->negative_rating_color);
+	g_free(unk_info->rating_color_2);
+	g_free(unk_info->rating_color_3);
+	g_free(unk_info->rating_color_4);
 	g_free(unk_info);
 	g_free(config_widgets);
 }
@@ -171,7 +204,7 @@ void geany_load_module(GeanyPlugin *plugin)
 	main_locale_init(LOCALEDIR, GETTEXT_PACKAGE);
 	plugin->info->name = _("URLNotesKeeper");
 	plugin->info->description = _(" Edit and keep your notes for any url in text.");
-	plugin->info->version = "0.3";
+	plugin->info->version = "0.4";
 	plugin->info->author =  "RedSkotina";
 
 	plugin->funcs->init = unk_plugin_init;

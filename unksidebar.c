@@ -18,12 +18,14 @@ typedef struct SIDEBAR
     GtkWidget *unk_view_label;
     GtkWidget *unk_text_view;
     GtkWidget *rating_eventbox;
-    GtkWidget *radio1, *radio2, *radio3, *rating_box;
+    GtkWidget *radio1, *radio2, *radio3, *rating_box_1;
+    GtkWidget *radio4, *radio5, *radio6, *rating_box_2;
+    GtkWidget *rating_vbox;
     GtkWidget *frame, *vbox;
 	 
 }SIDEBAR;
 
-static SIDEBAR sidebar = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+static SIDEBAR sidebar = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 typedef struct TextEntry
 {
@@ -59,6 +61,12 @@ gboolean sidebar_unk_text_view_on_focus_out (GtkWidget *widget, GdkEvent  *event
 			rating = 0;
 		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio3)))
 			rating = 1;
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio4)))
+			rating = 2;
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio5)))
+			rating = 3;
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio6)))
+			rating = 4;
 		
 		unk_db_set(key, value, rating);
 		
@@ -114,6 +122,21 @@ void sidebar_set_rating(gint rating)
 			
             gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->positive_rating_color);
 			break;
+		case 2:
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio4), TRUE);
+			
+            gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->rating_color_2);
+			break;
+		case 3:
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio5), TRUE);
+			
+            gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->rating_color_3);
+			break;
+		case 4:
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio6), TRUE);
+			
+            gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->rating_color_4);
+			break;
 		default:
 			g_warning("wrong rating %d", rating);
 			
@@ -144,6 +167,12 @@ static void radio_button_on_toggle (GtkToggleButton *source, gpointer user_data)
 		rating = 0;
 	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio3)))
 		rating = 1;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio4)))
+		rating = 2;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio5)))
+		rating = 3;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(sidebar.radio6)))
+		rating = 4;
 
     G_GNUC_BEGIN_IGNORE_DEPRECATIONS
     switch (rating) 
@@ -156,6 +185,15 @@ static void radio_button_on_toggle (GtkToggleButton *source, gpointer user_data)
 			break;
 		case 1:
 			gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->positive_rating_color);
+			break;
+		case 2:
+			gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->rating_color_2);
+			break;
+		case 3:
+			gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->rating_color_3);
+			break;
+		case 4:
+			gtk_widget_override_background_color(sidebar.rating_eventbox, GTK_STATE_NORMAL, unk_info->rating_color_4);
 			break;
 		default:
 			g_warning("wrong rating %d", rating);
@@ -238,32 +276,56 @@ void sidebar_init(GeanyPlugin* geany_plugin)
     gtk_box_pack_start(GTK_BOX(sidebar.vbox), sidebar.rating_eventbox, FALSE, FALSE, 1);
     
 	/**** radio buttons ****/
-	sidebar.rating_box = gtk_hbox_new (GTK_ORIENTATION_HORIZONTAL, 3);
-	gtk_box_set_homogeneous (GTK_BOX (sidebar.rating_box), TRUE);
+	sidebar.rating_vbox = gtk_vbox_new (GTK_ORIENTATION_VERTICAL, 2);
+	gtk_box_set_homogeneous (GTK_BOX (sidebar.rating_vbox), TRUE);
+
+	sidebar.rating_box_1 = gtk_hbox_new (GTK_ORIENTATION_HORIZONTAL, 3);
+	gtk_box_set_homogeneous (GTK_BOX (sidebar.rating_box_1), TRUE);
+
+	sidebar.rating_box_2 = gtk_hbox_new (GTK_ORIENTATION_HORIZONTAL, 3);
+	gtk_box_set_homogeneous (GTK_BOX (sidebar.rating_box_2), TRUE);
 
 	sidebar.radio1 = gtk_radio_button_new_with_mnemonic  ( NULL, "-");
 	sidebar.radio2 = gtk_radio_button_new_with_label_from_widget   ( GTK_RADIO_BUTTON (sidebar.radio1), " ");
 	sidebar.radio3 = gtk_radio_button_new_with_label_from_widget   ( GTK_RADIO_BUTTON (sidebar.radio1), "+");
+	sidebar.radio4 = gtk_radio_button_new_with_label_from_widget   ( GTK_RADIO_BUTTON (sidebar.radio1), "2");
+	sidebar.radio5 = gtk_radio_button_new_with_label_from_widget   ( GTK_RADIO_BUTTON (sidebar.radio1), "3");
+	sidebar.radio6 = gtk_radio_button_new_with_label_from_widget   ( GTK_RADIO_BUTTON (sidebar.radio1), "4");
 	
 	gtk_widget_set_size_request(sidebar.radio1, 80, 20);
 	gtk_widget_set_size_request(sidebar.radio2, 80, 20);
 	gtk_widget_set_size_request(sidebar.radio3, 80, 20);
+	gtk_widget_set_size_request(sidebar.radio4, 80, 20);
+	gtk_widget_set_size_request(sidebar.radio5, 80, 20);
+	gtk_widget_set_size_request(sidebar.radio6, 80, 20);
 
 	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio1), FALSE);
 	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio2), FALSE);
 	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio3), FALSE);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio4), FALSE);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio5), FALSE);
+	gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(sidebar.radio6), FALSE);
 
 	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (sidebar.radio2), TRUE);
    
 	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio1), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
 	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio2), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
 	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio3), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
+	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio4), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
+	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio5), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
+	g_signal_connect (GTK_TOGGLE_BUTTON (sidebar.radio6), "toggled", G_CALLBACK (radio_button_on_toggle), NULL);
 
-	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio1, TRUE, TRUE, 0);
-	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio2, TRUE, TRUE, 0);
-	gtk_box_pack_start (GTK_BOX (sidebar.rating_box), sidebar.radio3, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box_1), sidebar.radio1, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box_1), sidebar.radio2, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box_1), sidebar.radio3, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box_2), sidebar.radio4, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box_2), sidebar.radio5, TRUE, TRUE, 0);
+	gtk_box_pack_start (GTK_BOX (sidebar.rating_box_2), sidebar.radio6, TRUE, TRUE, 0);
 
-	gtk_box_pack_start(GTK_BOX(sidebar.vbox), sidebar.rating_box, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(sidebar.rating_vbox), sidebar.rating_box_1, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(sidebar.rating_vbox), sidebar.rating_box_2, FALSE, FALSE, 0);
+
+	gtk_box_pack_start(GTK_BOX(sidebar.vbox), sidebar.rating_vbox, FALSE, FALSE, 0);
     
 	/**** text ****/
 	sidebar.unk_text_view = gtk_text_view_new ();

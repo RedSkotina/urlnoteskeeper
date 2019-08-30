@@ -142,6 +142,21 @@ gboolean keys_callback(guint key_id)
 						indicator_exist = TRUE;
 						indicator_id = GEANY_INDICATOR_UNK_NEGATIVE_DB;
 					};
+					if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_2_DB))) 
+					{
+						indicator_exist = TRUE;
+						indicator_id = GEANY_INDICATOR_UNK_2_DB;
+					};
+					if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_3_DB))) 
+					{
+						indicator_exist = TRUE;
+						indicator_id = GEANY_INDICATOR_UNK_3_DB;
+					};
+					if (indicator_bitmap & (1<<(GEANY_INDICATOR_UNK_4_DB))) 
+					{
+						indicator_exist = TRUE;
+						indicator_id = GEANY_INDICATOR_UNK_4_DB;
+					};
 						
 					
 					if (indicator_exist)

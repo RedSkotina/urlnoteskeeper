@@ -36,6 +36,15 @@ GtkTextTag* get_tag_by_rating(gint rating)
 		case 1:
 			res = gtk_text_tag_table_lookup (tag_table, "positive_rating");
 			break;
+		case 2:
+			res = gtk_text_tag_table_lookup (tag_table, "rating_2");
+			break;
+		case 3:
+			res = gtk_text_tag_table_lookup (tag_table, "rating_3");
+			break;
+		case 4:
+			res = gtk_text_tag_table_lookup (tag_table, "rating_4");
+			break;
 		default:
 			g_warning("unknown rating value %d", rating);
 	}
@@ -147,6 +156,18 @@ void feedbar_reset()
     gtk_text_buffer_create_tag( buffer, "negative_rating",
         "background", gdk_rgba_to_hex_string (unk_info->negative_rating_color, buf),
         "foreground", gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->negative_rating_color, &inv_color), buf2),
+        NULL);
+    gtk_text_buffer_create_tag( buffer, "rating_2",
+        "background", gdk_rgba_to_hex_string (unk_info->rating_color_2, buf),
+        "foreground", gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->rating_color_2, &inv_color), buf2),
+        NULL);
+    gtk_text_buffer_create_tag( buffer, "rating_3",
+        "background", gdk_rgba_to_hex_string (unk_info->rating_color_3, buf),
+        "foreground", gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->rating_color_3, &inv_color), buf2),
+        NULL);
+    gtk_text_buffer_create_tag( buffer, "rating_4",
+        "background", gdk_rgba_to_hex_string (unk_info->rating_color_4, buf),
+        "foreground", gdk_rgba_to_hex_string (gdk_rgba_contrast(unk_info->rating_color_4, &inv_color), buf2),
         NULL);
      
 }

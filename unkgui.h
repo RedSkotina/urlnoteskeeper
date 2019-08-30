@@ -5,6 +5,9 @@ extern gint GEANY_INDICATOR_UNK_AUTO_DETECTED;
 extern gint GEANY_INDICATOR_UNK_POSITIVE_DB;
 extern gint GEANY_INDICATOR_UNK_NEUTRAL_DB;
 extern gint GEANY_INDICATOR_UNK_NEGATIVE_DB;
+extern gint GEANY_INDICATOR_UNK_2_DB;
+extern gint GEANY_INDICATOR_UNK_3_DB;
+extern gint GEANY_INDICATOR_UNK_4_DB;
 
 typedef struct MarkInfo{
  gint start;
@@ -21,6 +24,9 @@ typedef struct ConfigWidgets{
  GtkColorButton * button_positive_rating_color;
  GtkColorButton * button_neutral_rating_color;
  GtkColorButton * button_negative_rating_color;
+ GtkColorButton * button_rating_color_2;
+ GtkColorButton * button_rating_color_3;
+ GtkColorButton * button_rating_color_4;
   
 } ConfigWidgets;
 
