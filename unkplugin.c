@@ -167,7 +167,7 @@ static gboolean unk_plugin_init(GeanyPlugin *plugin, gpointer data)
 	unk_db_init(unk_info->db_path);
 	
     sidebar_init(plugin);
-	feedbar_init(plugin);
+	//feedbar_init(plugin); feedbar disabled
 	searchbar_init(plugin);
 	
     return TRUE;
@@ -185,8 +185,12 @@ static GtkWidget *unk_plugin_configure(GeanyPlugin *plugin, GtkDialog *dialog, g
 static void unk_plugin_cleanup(GeanyPlugin *plugin, gpointer data)
 {
 	g_debug("unk_plugin_cleanup");
-    unk_db_cleanup();
+    
+    searchbar_cleanup();
+	//feedbar_cleanup(); feedbar disabled
 	sidebar_cleanup();
+	
+    unk_db_cleanup();
 	menu_cleanup();
 	g_free(unk_info->positive_rating_color);
 	g_free(unk_info->neutral_rating_color);

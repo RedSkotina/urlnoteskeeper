@@ -419,17 +419,16 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				sidebar_set_rating(row->rating);
 				
                 sidebar_show(geany_plugin);			
-				feedbar_show(geany_plugin);			
+				//feedbar_show(geany_plugin);	feedbar disabled		
 				
-                GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none");
+                //GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none"); feedbar disabled
+				//feedbar_set_notes(secondary_rows); feedbar disabled
+                //feedbar_activate(); feedbar disabled
+				//g_hash_table_destroy (secondary_rows); feedbar disabled
 				
-                feedbar_set_notes(secondary_rows);
-                
                 sidebar_activate();
-				feedbar_activate();
 				
-                g_hash_table_destroy (secondary_rows);
-				g_free(tr.lpstrText);
+                g_free(tr.lpstrText);
 				g_free(row->note);
 				g_free(row);
 			}
@@ -454,16 +453,17 @@ gboolean unk_gui_editor_notify(GObject *object, GeanyEditor *editor,
 				sidebar_show(geany_plugin);			
 				
                 //feedbar_reset();
-                feedbar_show(geany_plugin);			
+                //feedbar_show(geany_plugin);	feedbar disabled		
 				
-                GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none");
+                //GHashTable* secondary_rows = unk_db_get_secondary(tr.lpstrText, "none"); feedbar disabled
 				
-                feedbar_set_notes(secondary_rows);
+                //feedbar_set_notes(secondary_rows);feedbar disabled
                 
+                //feedbar_activate(); feedbar disabled
+				//g_hash_table_destroy (secondary_rows); feedbar disabled
+				
                 sidebar_activate();
-				feedbar_activate();
 				
-                
 				g_free(tr.lpstrText);
 				g_free(note);
 				
@@ -569,7 +569,7 @@ item_activate(GtkMenuItem *menuitem, gpointer gdata)
 	GeanyPlugin *plugin = gdata;
 
 	sidebar_show(plugin);
-    feedbar_show(plugin);			
+    //feedbar_show(plugin);	feedbar disabled		
 				
 }
 

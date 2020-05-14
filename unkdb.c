@@ -222,7 +222,6 @@ static gboolean unk_db_check_duplicates()
     for (iterator = list; iterator; iterator = iterator->next) 
     {
         gchar *lkey = g_utf8_strdown(((DBRow*)iterator->data)->url, -1);
-        g_print(lkey);
         gint* value = g_hash_table_lookup(ht, lkey);
         gint* value1 = g_malloc(sizeof (gint));
         *value1 = 1;        

@@ -26,7 +26,7 @@ keyinfo keys[] = {
 	{ "key_detect_urls", _("Detect urls in text"), KEY_DETECT_URLS},
 	{ "key_detect_db", _("Detect words from database in text"), KEY_DETECT_DB},
 	{ "key_show_searchbar", _("Show searchbar"), KEY_SHOW_SEARCHBAR},
-	{ "key_show_feedbar", _("Show feedbar"), KEY_SHOW_FEEDBAR},
+	//{ "key_show_feedbar", _("Show feedbar"), KEY_SHOW_FEEDBAR},
 	{ NULL, NULL, 0}
 };
 
@@ -100,11 +100,11 @@ gboolean keys_callback(guint key_id)
                         
 						sidebar_show(geany_plugin);			
                         //sidebar_hide_all_secondary_frames();
-                        feedbar_reset();
-                        feedbar_show(geany_plugin);			
+                        //feedbar_reset(); feedbar disabled
+                        //feedbar_show(geany_plugin); feedbar disabled			
 				
                         sidebar_activate();
-						feedbar_activate();
+						//feedbar_activate(); feedbar disabled
 						
 					}
 					g_free(row->note);
@@ -182,8 +182,8 @@ gboolean keys_callback(guint key_id)
 							sidebar_deactivate();
 							
                             //sidebar_hide_all_secondary_frames();
-                            feedbar_reset();
-                            feedbar_deactivate();
+                            //feedbar_reset(); feedbar disabled
+                            //feedbar_deactivate(); feedbar disabled
 							
 							clear_all_db_marks(doc->editor);
 			
@@ -236,11 +236,12 @@ gboolean keys_callback(guint key_id)
 			searchbar_show(geany_plugin);
 			break;
 		}
-        case KEY_SHOW_FEEDBAR:
-		{
-			feedbar_show(geany_plugin);
-			break;
-		}
+        //feedbar disabled
+        //case KEY_SHOW_FEEDBAR: 
+		//{
+		//	feedbar_show(geany_plugin);
+		//	break;
+		//}
         
 	}
 	
